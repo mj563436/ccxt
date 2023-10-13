@@ -1728,6 +1728,7 @@ class bybit(Exchange, ImplicitAPI):
                         'max': self.safe_number(lotSizeFilter, 'maxOrderAmt'),
                     },
                 },
+                'created': None,
                 'info': market,
             })
         return result
@@ -1890,6 +1891,7 @@ class bybit(Exchange, ImplicitAPI):
                         'max': None,
                     },
                 },
+                'created': self.safe_integer(market, 'launchTime'),
                 'info': market,
             })
         return result
@@ -2017,6 +2019,7 @@ class bybit(Exchange, ImplicitAPI):
                             'max': None,
                         },
                     },
+                    'created': self.safe_integer(market, 'launchTime'),
                     'info': market,
                 })
         return result
@@ -3375,9 +3378,12 @@ class bybit(Exchange, ImplicitAPI):
         #     }
         #
         marketId = self.safe_string(order, 'symbol')
-        marketType = 'contract'
+        isContract = ('tpslMode' in order)
+        marketType = None
         if market is not None:
             marketType = market['type']
+        else:
+            marketType = 'contract' if isContract else 'spot'
         market = self.safe_market(marketId, market, None, marketType)
         symbol = market['symbol']
         timestamp = self.safe_integer_2(order, 'createdTime', 'createdAt')
@@ -5356,10 +5362,9 @@ class bybit(Exchange, ImplicitAPI):
         timestamp = self.safe_integer(response, 'time')
         first = self.safe_value(positions, 0, {})
         position = self.parse_position(first, market)
-        return self.extend(position, {
-            'timestamp': timestamp,
-            'datetime': self.iso8601(timestamp),
-        })
+        position['timestamp'] = timestamp
+        position['datetime'] = self.iso8601(timestamp)
+        return position
 
     def fetch_usdc_positions(self, symbols: Optional[List[str]] = None, params={}):
         self.load_markets()
@@ -5429,7 +5434,7 @@ class bybit(Exchange, ImplicitAPI):
                 # futures only
                 rawPosition = self.safe_value(rawPosition, 'data')
             results.append(self.parse_position(rawPosition, market))
-        return self.filter_by_array(results, 'symbol', symbols, False)
+        return self.filter_by_array_positions(results, 'symbol', symbols, False)
 
     def fetch_positions(self, symbols: Optional[List[str]] = None, params={}):
         """
@@ -6035,14 +6040,14 @@ class bybit(Exchange, ImplicitAPI):
         #
         timestamp = self.safe_integer(interest, 'timestamp')
         value = self.safe_number_2(interest, 'open_interest', 'openInterest')
-        return {
+        return self.safe_open_interest({
             'symbol': market['symbol'],
             'openInterestAmount': None,
             'openInterestValue': value,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
             'info': interest,
-        }
+        }, market)
 
     def fetch_borrow_rate(self, code: str, params={}):
         """

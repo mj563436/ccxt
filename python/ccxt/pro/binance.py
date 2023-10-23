@@ -1332,7 +1332,7 @@ class binance(ccxt.async_support.binance):
     async def fetch_balance_ws(self, params={}):
         """
         fetch balance and get the amount of funds available for trading or funds locked in orders
-        see https://binance-docs.github.io/apidocs/websocket_api/en/#account-information-user_data
+        :see: https://binance-docs.github.io/apidocs/websocket_api/en/#account-information-user_data
         :param dict [params]: extra parameters specific to the binance api endpoint
         :param str|None [params.type]: 'future', 'delivery', 'savings', 'funding', or 'spot'
         :param str|None [params.marginMode]: 'cross' or 'isolated', for margin trading, uses self.options.defaultMarginMode if not passed, defaults to None/None/None
@@ -1552,7 +1552,7 @@ class binance(ccxt.async_support.binance):
 
     async def create_order_ws(self, symbol: str, type: OrderType, side: OrderSide, amount: float, price: Optional[float] = None, params={}):
         """
-        see https://binance-docs.github.io/apidocs/websocket_api/en/#place-new-order-trade
+        :see: https://binance-docs.github.io/apidocs/websocket_api/en/#place-new-order-trade
         create a trade order
         :param str symbol: unified symbol of the market to create an order in
         :param str type: 'market' or 'limit'
@@ -1684,7 +1684,7 @@ class binance(ccxt.async_support.binance):
     async def edit_order_ws(self, id: str, symbol: str, type: OrderType, side: OrderSide, amount: float, price: Optional[float] = None, params={}):
         """
         edit a trade order
-        see https://binance-docs.github.io/apidocs/websocket_api/en/#cancel-and-replace-order-trade
+        :see: https://binance-docs.github.io/apidocs/websocket_api/en/#cancel-and-replace-order-trade
         :param str id: order id
         :param str symbol: unified symbol of the market to create an order in
         :param str type: 'market' or 'limit'
@@ -1788,7 +1788,7 @@ class binance(ccxt.async_support.binance):
 
     async def cancel_order_ws(self, id: str, symbol: Optional[str] = None, params={}):
         """
-        see https://binance-docs.github.io/apidocs/websocket_api/en/#cancel-order-trade
+        :see: https://binance-docs.github.io/apidocs/websocket_api/en/#cancel-order-trade
         cancel multiple orders
         :param str id: order id
         :param str symbol: unified market symbol, default is None
@@ -1827,7 +1827,7 @@ class binance(ccxt.async_support.binance):
 
     async def cancel_all_orders_ws(self, symbol: Optional[str] = None, params={}):
         """
-        see https://binance-docs.github.io/apidocs/websocket_api/en/#current-open-orders-user_data
+        :see: https://binance-docs.github.io/apidocs/websocket_api/en/#current-open-orders-user_data
         cancel all open orders in a market
         :param str symbol: unified market symbol of the market to cancel orders in
         :param dict [params]: extra parameters specific to the binance api endpoint
@@ -1855,7 +1855,7 @@ class binance(ccxt.async_support.binance):
 
     async def fetch_order_ws(self, id: str, symbol: Optional[str] = None, params={}):
         """
-        see https://binance-docs.github.io/apidocs/websocket_api/en/#query-order-user_data
+        :see: https://binance-docs.github.io/apidocs/websocket_api/en/#query-order-user_data
         fetches information on an order made by the user
         :param str symbol: unified symbol of the market the order was made in
         :param dict params: extra parameters specific to the binance api endpoint
@@ -1891,7 +1891,7 @@ class binance(ccxt.async_support.binance):
 
     async def fetch_orders_ws(self, symbol: Optional[str] = None, since: Optional[int] = None, limit: Optional[int] = None, params={}):
         """
-        see https://binance-docs.github.io/apidocs/websocket_api/en/#account-order-history-user_data
+        :see: https://binance-docs.github.io/apidocs/websocket_api/en/#account-order-history-user_data
         fetches information on multiple orders made by the user
         :param str symbol: unified market symbol of the market orders were made in
         :param int|None [since]: the earliest time in ms to fetch orders for
@@ -1929,7 +1929,7 @@ class binance(ccxt.async_support.binance):
 
     async def fetch_open_orders_ws(self, symbol: Optional[str] = None, since: Optional[int] = None, limit: Optional[int] = None, params={}):
         """
-        see https://binance-docs.github.io/apidocs/websocket_api/en/#current-open-orders-user_data
+        :see: https://binance-docs.github.io/apidocs/websocket_api/en/#current-open-orders-user_data
         fetch all unfilled currently open orders
         :param str symbol: unified market symbol
         :param int|None [since]: the earliest time in ms to fetch open orders for
@@ -2230,7 +2230,7 @@ class binance(ccxt.async_support.binance):
 
     async def fetch_my_trades_ws(self, symbol: Optional[str] = None, since: Optional[int] = None, limit: Optional[int] = None, params={}):
         """
-        see https://binance-docs.github.io/apidocs/websocket_api/en/#account-trade-history-user_data
+        :see: https://binance-docs.github.io/apidocs/websocket_api/en/#account-trade-history-user_data
         fetch all trades made by the user
         :param str symbol: unified market symbol
         :param int|None [since]: the earliest time in ms to fetch trades for

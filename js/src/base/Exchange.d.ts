@@ -96,6 +96,9 @@ export default class Exchange {
     last_json_response: any;
     last_response_headers: any;
     last_request_headers: any;
+    last_request_body: any;
+    last_request_url: any;
+    last_request_path: any;
     id: string;
     markets: Dictionary<any>;
     has: Dictionary<boolean | 'emulated'>;
@@ -617,6 +620,7 @@ export default class Exchange {
         rate: number;
         cost: number;
     };
+    safeLiquidation(liquidation: object, market?: object): Liquidation;
     safeTrade(trade: object, market?: object): Trade;
     invertFlatStringDictionary(dict: any): {};
     reduceFeesByCurrency(fees: any): any[];
@@ -778,6 +782,7 @@ export default class Exchange {
     safeCurrencyCode(currencyId?: string, currency?: any): any;
     filterBySymbolSinceLimit(array: any, symbol?: string, since?: Int, limit?: Int, tail?: boolean): any;
     filterByCurrencySinceLimit(array: any, code?: any, since?: Int, limit?: Int, tail?: boolean): any;
+    filterBySymbolsSinceLimit(array: any, symbols?: string[], since?: Int, limit?: Int, tail?: boolean): any;
     parseLastPrices(pricesData: any, symbols?: string[], params?: {}): any;
     parseTickers(tickers: any, symbols?: string[], params?: {}): Dictionary<Ticker>;
     parseDepositAddresses(addresses: any, codes?: string[], indexed?: boolean, params?: {}): {};

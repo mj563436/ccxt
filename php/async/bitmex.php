@@ -948,7 +948,7 @@ class bitmex extends Exchange {
              */
             // Bitmex barfs if you set 'open' => false in the filter...
             $orders = Async\await($this->fetch_orders($symbol, $since, $limit, $params));
-            return $this->filter_by($orders, 'status', 'closed');
+            return $this->filter_by_array($orders, 'status', array( 'closed', 'canceled' ), false);
         }) ();
     }
 
@@ -2744,7 +2744,7 @@ class bitmex extends Exchange {
         //     }
         //
         $marketId = $this->safe_string($liquidation, 'symbol');
-        return array(
+        return $this->safe_liquidation(array(
             'info' => $liquidation,
             'symbol' => $this->safe_symbol($marketId, $market),
             'contracts' => null,
@@ -2754,7 +2754,7 @@ class bitmex extends Exchange {
             'quoteValue' => null,
             'timestamp' => null,
             'datetime' => null,
-        );
+        ));
     }
 
     public function handle_errors($code, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {

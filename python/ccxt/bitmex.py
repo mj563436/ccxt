@@ -904,7 +904,7 @@ class bitmex(Exchange, ImplicitAPI):
         """
         # Bitmex barfs if you set 'open': False in the filter...
         orders = self.fetch_orders(symbol, since, limit, params)
-        return self.filter_by(orders, 'status', 'closed')
+        return self.filter_by_array(orders, 'status', ['closed', 'canceled'], False)
 
     def fetch_my_trades(self, symbol: Optional[str] = None, since: Optional[int] = None, limit: Optional[int] = None, params={}):
         """
@@ -2545,7 +2545,7 @@ class bitmex(Exchange, ImplicitAPI):
         #     }
         #
         marketId = self.safe_string(liquidation, 'symbol')
-        return {
+        return self.safe_liquidation({
             'info': liquidation,
             'symbol': self.safe_symbol(marketId, market),
             'contracts': None,
@@ -2555,7 +2555,7 @@ class bitmex(Exchange, ImplicitAPI):
             'quoteValue': None,
             'timestamp': None,
             'datetime': None,
-        }
+        })
 
     def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if response is None:

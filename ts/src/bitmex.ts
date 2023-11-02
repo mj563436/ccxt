@@ -945,7 +945,7 @@ export default class bitmex extends Exchange {
          */
         // Bitmex barfs if you set 'open': false in the filter...
         const orders = await this.fetchOrders (symbol, since, limit, params);
-        return this.filterBy (orders, 'status', 'closed') as Order[];
+        return this.filterByArray (orders, 'status', [ 'closed', 'canceled' ], false) as Order[];
     }
 
     async fetchMyTrades (symbol: string = undefined, since: Int = undefined, limit: Int = undefined, params = {}) {
@@ -2738,7 +2738,7 @@ export default class bitmex extends Exchange {
         //     }
         //
         const marketId = this.safeString (liquidation, 'symbol');
-        return {
+        return this.safeLiquidation ({
             'info': liquidation,
             'symbol': this.safeSymbol (marketId, market),
             'contracts': undefined,
@@ -2748,7 +2748,7 @@ export default class bitmex extends Exchange {
             'quoteValue': undefined,
             'timestamp': undefined,
             'datetime': undefined,
-        };
+        });
     }
 
     handleErrors (code, reason, url, method, headers, body, response, requestHeaders, requestBody) {

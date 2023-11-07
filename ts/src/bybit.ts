@@ -429,6 +429,7 @@ export default class bybit extends Exchange {
                         'v5/user/query-api': 5, // 10/s => cost = 50 / 10 = 5
                         'v5/user/get-member-type': 5,
                         'v5/user/aff-customer-info': 5,
+                        'v5/user/del-submember': 5,
                         // spot leverage token
                         'v5/spot-lever-token/order-record': 1, // 50/s => cost = 50 / 50 = 1
                         // spot margin trade
@@ -2354,7 +2355,7 @@ export default class bybit extends Exchange {
         return this.filterByArrayTickers (tickers, 'symbol', symbols);
     }
 
-    parseOHLCV (ohlcv, market = undefined) {
+    parseOHLCV (ohlcv, market = undefined): OHLCV {
         //
         //     [
         //         "1621162800",
@@ -3427,7 +3428,7 @@ export default class bybit extends Exchange {
         return this.safeString (timeInForces, timeInForce, timeInForce);
     }
 
-    parseOrder (order, market = undefined) {
+    parseOrder (order, market = undefined): Order {
         //
         // v1 for usdc normal account
         //     {

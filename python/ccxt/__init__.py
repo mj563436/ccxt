@@ -22,7 +22,7 @@
 
 # ----------------------------------------------------------------------------
 
-__version__ = '4.1.41'
+__version__ = '4.1.51'
 
 # ----------------------------------------------------------------------------
 
@@ -123,6 +123,7 @@ from ccxt.coinbasepro import coinbasepro                              # noqa: F4
 from ccxt.coincheck import coincheck                                  # noqa: F401
 from ccxt.coinex import coinex                                        # noqa: F401
 from ccxt.coinfalcon import coinfalcon                                # noqa: F401
+from ccxt.coinlist import coinlist                                    # noqa: F401
 from ccxt.coinmate import coinmate                                    # noqa: F401
 from ccxt.coinone import coinone                                      # noqa: F401
 from ccxt.coinsph import coinsph                                      # noqa: F401
@@ -140,6 +141,7 @@ from ccxt.gemini import gemini                                        # noqa: F4
 from ccxt.hitbtc import hitbtc                                        # noqa: F401
 from ccxt.hitbtc3 import hitbtc3                                      # noqa: F401
 from ccxt.hollaex import hollaex                                      # noqa: F401
+from ccxt.htx import htx                                              # noqa: F401
 from ccxt.huobi import huobi                                          # noqa: F401
 from ccxt.huobijp import huobijp                                      # noqa: F401
 from ccxt.huobipro import huobipro                                    # noqa: F401
@@ -230,6 +232,7 @@ exchanges = [
     'coincheck',
     'coinex',
     'coinfalcon',
+    'coinlist',
     'coinmate',
     'coinone',
     'coinsph',
@@ -247,6 +250,7 @@ exchanges = [
     'hitbtc',
     'hitbtc3',
     'hollaex',
+    'htx',
     'huobi',
     'huobijp',
     'huobipro',

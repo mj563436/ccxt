@@ -33,14 +33,14 @@ import { Exchange }  from './src/base/Exchange.js'
 import { Precise }   from './src/base/Precise.js'
 import * as functions from './src/base/functions.js'
 import * as errors   from './src/base/errors.js'
-import { Market, Trade , Fee, Ticker, OrderBook, Order, Transaction, Tickers, Currency, Balance, DepositAddress, WithdrawalResponse, DepositAddressResponse, OHLCV, Balances, PartialBalances, Dictionary, MinMax, Position, FundingRateHistory, Liquidation, FundingHistory } from './src/base/types.js'
+import { Market, Trade , Fee, Ticker, OrderBook, Order, Transaction, Tickers, Currency, Balance, DepositAddress, WithdrawalResponse, DepositAddressResponse, OHLCV, Balances, PartialBalances, Dictionary, MinMax, Position, FundingRateHistory, Liquidation, FundingHistory, MarginMode, Greeks } from './src/base/types.js'
 import { BaseError, ExchangeError, PermissionDenied, AccountNotEnabled, AccountSuspended, ArgumentsRequired, BadRequest, BadSymbol, MarginModeAlreadySet, BadResponse, NullResponse, InsufficientFunds, InvalidAddress, InvalidOrder, OrderNotFound, OrderNotCached, CancelPending, OrderImmediatelyFillable, OrderNotFillable, DuplicateOrderId, NotSupported, NetworkError, DDoSProtection, RateLimitExceeded, ExchangeNotAvailable, OnMaintenance, InvalidNonce, RequestTimeout, AuthenticationError, AddressPending, NoChange }  from './src/base/errors.js'
 
 
 //-----------------------------------------------------------------------------
 // this is updated by vss.js when building
 
-const version = '4.1.41';
+const version = '4.1.51';
 
 (Exchange as any).ccxtVersion = version
 
@@ -92,6 +92,7 @@ import coinbasepro from  './src/coinbasepro.js'
 import coincheck from  './src/coincheck.js'
 import coinex from  './src/coinex.js'
 import coinfalcon from  './src/coinfalcon.js'
+import coinlist from  './src/coinlist.js'
 import coinmate from  './src/coinmate.js'
 import coinone from  './src/coinone.js'
 import coinsph from  './src/coinsph.js'
@@ -109,6 +110,7 @@ import gemini from  './src/gemini.js'
 import hitbtc from  './src/hitbtc.js'
 import hitbtc3 from  './src/hitbtc3.js'
 import hollaex from  './src/hollaex.js'
+import htx from  './src/htx.js'
 import huobi from  './src/huobi.js'
 import huobijp from  './src/huobijp.js'
 import huobipro from  './src/huobipro.js'
@@ -190,6 +192,7 @@ import gateioPro from  './src/pro/gateio.js'
 import geminiPro from  './src/pro/gemini.js'
 import hitbtcPro from  './src/pro/hitbtc.js'
 import hollaexPro from  './src/pro/hollaex.js'
+import htxPro from  './src/pro/htx.js'
 import huobiPro from  './src/pro/huobi.js'
 import huobijpPro from  './src/pro/huobijp.js'
 import huobiproPro from  './src/pro/huobipro.js'
@@ -262,6 +265,7 @@ const exchanges = {
     'coincheck':              coincheck,
     'coinex':                 coinex,
     'coinfalcon':             coinfalcon,
+    'coinlist':               coinlist,
     'coinmate':               coinmate,
     'coinone':                coinone,
     'coinsph':                coinsph,
@@ -279,6 +283,7 @@ const exchanges = {
     'hitbtc':                 hitbtc,
     'hitbtc3':                hitbtc3,
     'hollaex':                hollaex,
+    'htx':                    htx,
     'huobi':                  huobi,
     'huobijp':                huobijp,
     'huobipro':               huobipro,
@@ -360,6 +365,7 @@ const pro = {
     'gemini':                 geminiPro,
     'hitbtc':                 hitbtcPro,
     'hollaex':                hollaexPro,
+    'htx':                    htxPro,
     'huobi':                  huobiPro,
     'huobijp':                huobijpPro,
     'huobipro':               huobiproPro,
@@ -462,6 +468,8 @@ export {
     FundingRateHistory,
     Liquidation,
     FundingHistory,
+    MarginMode,
+    Greeks,
     ace,
     alpaca,
     ascendex,
@@ -508,6 +516,7 @@ export {
     coincheck,
     coinex,
     coinfalcon,
+    coinlist,
     coinmate,
     coinone,
     coinsph,
@@ -525,6 +534,7 @@ export {
     hitbtc,
     hitbtc3,
     hollaex,
+    htx,
     huobi,
     huobijp,
     huobipro,

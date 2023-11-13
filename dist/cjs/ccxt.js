@@ -58,6 +58,7 @@ var coinbasepro = require('./src/coinbasepro.js');
 var coincheck = require('./src/coincheck.js');
 var coinex = require('./src/coinex.js');
 var coinfalcon = require('./src/coinfalcon.js');
+var coinlist = require('./src/coinlist.js');
 var coinmate = require('./src/coinmate.js');
 var coinone = require('./src/coinone.js');
 var coinsph = require('./src/coinsph.js');
@@ -75,6 +76,7 @@ var gemini = require('./src/gemini.js');
 var hitbtc = require('./src/hitbtc.js');
 var hitbtc3 = require('./src/hitbtc3.js');
 var hollaex = require('./src/hollaex.js');
+var htx = require('./src/htx.js');
 var huobi = require('./src/huobi.js');
 var huobijp = require('./src/huobijp.js');
 var huobipro = require('./src/huobipro.js');
@@ -153,6 +155,7 @@ var gateio$1 = require('./src/pro/gateio.js');
 var gemini$1 = require('./src/pro/gemini.js');
 var hitbtc$1 = require('./src/pro/hitbtc.js');
 var hollaex$1 = require('./src/pro/hollaex.js');
+var htx$1 = require('./src/pro/htx.js');
 var huobi$1 = require('./src/pro/huobi.js');
 var huobijp$1 = require('./src/pro/huobijp.js');
 var huobipro$1 = require('./src/pro/huobipro.js');
@@ -180,7 +183,7 @@ var woo$1 = require('./src/pro/woo.js');
 
 //-----------------------------------------------------------------------------
 // this is updated by vss.js when building
-const version = '4.1.41';
+const version = '4.1.51';
 Exchange["default"].ccxtVersion = version;
 const exchanges = {
     'ace': ace,
@@ -229,6 +232,7 @@ const exchanges = {
     'coincheck': coincheck,
     'coinex': coinex,
     'coinfalcon': coinfalcon,
+    'coinlist': coinlist,
     'coinmate': coinmate,
     'coinone': coinone,
     'coinsph': coinsph,
@@ -246,6 +250,7 @@ const exchanges = {
     'hitbtc': hitbtc,
     'hitbtc3': hitbtc3,
     'hollaex': hollaex,
+    'htx': htx,
     'huobi': huobi,
     'huobijp': huobijp,
     'huobipro': huobipro,
@@ -326,6 +331,7 @@ const pro = {
     'gemini': gemini$1,
     'hitbtc': hitbtc$1,
     'hollaex': hollaex$1,
+    'htx': htx$1,
     'huobi': huobi$1,
     'huobijp': huobijp$1,
     'huobipro': huobipro$1,
@@ -438,6 +444,7 @@ exports.coinbasepro = coinbasepro;
 exports.coincheck = coincheck;
 exports.coinex = coinex;
 exports.coinfalcon = coinfalcon;
+exports.coinlist = coinlist;
 exports.coinmate = coinmate;
 exports.coinone = coinone;
 exports.coinsph = coinsph;
@@ -455,6 +462,7 @@ exports.gemini = gemini;
 exports.hitbtc = hitbtc;
 exports.hitbtc3 = hitbtc3;
 exports.hollaex = hollaex;
+exports.htx = htx;
 exports.huobi = huobi;
 exports.huobijp = huobijp;
 exports.huobipro = huobipro;

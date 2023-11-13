@@ -37,8 +37,9 @@ export default class testMainClass extends baseMainTestClass {
     loadStaticData(targetExchange?: string): {};
     removeHostnamefromUrl(url: string): string;
     urlencodedToDict(url: string): {};
-    assertNewAndStoredOutput(exchange: any, skipKeys: string[], newOutput: object, storedOutput: object): any;
+    assertNewAndStoredOutput(exchange: any, skipKeys: string[], newOutput: any, storedOutput: any): void;
     assertStaticOutput(exchange: any, type: string, skipKeys: string[], storedUrl: string, requestUrl: string, storedOutput: any, newOutput: any): void;
+    sanitizeDataInput(input: any): any[];
     testMethodStatically(exchange: any, method: string, data: object, type: string, skipKeys: string[]): Promise<void>;
     initOfflineExchange(exchangeName: string): Exchange;
     testExchangeStatically(exchangeName: string, exchangeData: object, testName?: string): Promise<void>;
@@ -55,5 +56,7 @@ export default class testMainClass extends baseMainTestClass {
     testMexc(): Promise<void>;
     testHuobi(): Promise<void>;
     testWoo(): Promise<void>;
+    testBitmart(): Promise<void>;
+    testCoinex(): Promise<void>;
 }
 export {};

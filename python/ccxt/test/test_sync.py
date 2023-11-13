@@ -5,7 +5,6 @@ import json
 # import logging
 import os
 import sys
-import time  # noqa: F401
 from traceback import format_tb, format_exception
 
 import importlib  # noqa: E402
@@ -432,9 +431,9 @@ class testMainClass(baseMainTestClass):
                 if not results[i]:
                     errors.append(testNames[i])
             # we don't raise exception for public-tests, see comments under 'testSafe' method
-            failedMsg = ', '.join(errors) if errors else None
             errorsInMessage = ''
-            if errors is not None:
+            if errors:
+                failedMsg = ', '.join(errors)
                 errorsInMessage = ' | Failed methods : ' + failedMsg
             messageContent = '[INFO:PUBLIC_TESTS_END] ' + market['type'] + errorsInMessage
             messageWithPadding = self.add_padding(messageContent, 25)
@@ -768,12 +767,12 @@ class testMainClass(baseMainTestClass):
         # to make self test
         # and basically independent from the exchange
         # so we can run it offline
-        filename = './ts/src/test/static/markets/' + id + '.json'
+        filename = rootDir + './ts/src/test/static/markets/' + id + '.json'
         content = io_file_read(filename)
         return content
 
     def load_static_data(self, targetExchange: Optional[str] = None):
-        folder = './ts/src/test/static/data/'
+        folder = rootDir + './ts/src/test/static/data/'
         result = {}
         if targetExchange:
             # read a single exchange
@@ -811,31 +810,46 @@ class testMainClass(baseMainTestClass):
         for i in range(0, len(parts)):
             part = parts[i]
             keyValue = part.split('=')
+            keysLength = len(keyValue)
+            if keysLength != 2:
+                continue
             key = keyValue[0]
             value = keyValue[1]
+            if (value is not None) and ((value.startswith('[')) or (value.startswith('{'))):
+                # some exchanges might return something like self: timestamp=1699382693405&batchOrders=[{\"symbol\":\"LTCUSDT\",\"side\":\"BUY\",\"newClientOrderI
+                value = json_parse(value)
             result[key] = value
         return result
 
-    def assert_new_and_stored_output(self, exchange, skipKeys: List[str], newOutput: object, storedOutput: object):
-        storedOutputKeys = list(storedOutput.keys())
-        newOutputKeys = list(newOutput.keys())
-        storedLenght = len(storedOutputKeys)
-        newLength = len(newOutputKeys)
-        self.assert_static_error(storedLenght == newLength, 'output length mismatch', storedOutput, newOutput)
-        for i in range(0, len(storedOutputKeys)):
-            key = storedOutputKeys[i]
-            if exchange.in_array(key, skipKeys):
-                continue
-            if not (exchange.in_array(key, newOutputKeys)):
-                self.assert_static_error(False, 'output key missing: ' + key, storedOutput, newOutput)
-            storedValue = storedOutput[key]
-            newValue = newOutput[key]
-            if isinstance(storedValue, dict):
-                if isinstance(newValue, dict):
-                    # recursive objects
-                    return self.assert_new_and_stored_output(exchange, skipKeys, newValue, storedValue)
-            messageError = 'output value mismatch for: ' + key + ' : ' + str(storedValue) + ' != ' + str(newValue)
-            self.assert_static_error(storedValue == newValue, messageError, storedOutput, newOutput)
+    def assert_new_and_stored_output(self, exchange, skipKeys: List[str], newOutput, storedOutput):
+        if (isinstance(storedOutput, dict)) and (isinstance(newOutput, dict)):
+            storedOutputKeys = list(storedOutput.keys())
+            newOutputKeys = list(newOutput.keys())
+            storedKeysLength = len(storedOutputKeys)
+            newKeysLength = len(newOutputKeys)
+            self.assert_static_error(storedKeysLength == newKeysLength, 'output length mismatch', storedOutput, newOutput)
+            # iterate over the keys
+            for i in range(0, len(storedOutputKeys)):
+                key = storedOutputKeys[i]
+                if exchange.in_array(key, skipKeys):
+                    continue
+                if not (exchange.in_array(key, newOutputKeys)):
+                    self.assert_static_error(False, 'output key missing: ' + key, storedOutput, newOutput)
+                storedValue = storedOutput[key]
+                newValue = newOutput[key]
+                self.assert_new_and_stored_output(exchange, skipKeys, newValue, storedValue)
+        elif isinstance(storedOutput, list) and (isinstance(newOutput, list)):
+            storedArrayLength = len(storedOutput)
+            newArrayLength = len(newOutput)
+            self.assert_static_error(storedArrayLength == newArrayLength, 'output length mismatch', storedOutput, newOutput)
+            for i in range(0, len(storedOutput)):
+                storedItem = storedOutput[i]
+                newItem = newOutput[i]
+                self.assert_new_and_stored_output(exchange, skipKeys, newItem, storedItem)
+        else:
+            # built-in types like strings, numbers, booleans
+            messageError = 'output value mismatch:' + str(newOutput) + ' != ' + str(storedOutput)
+            self.assert_static_error(newOutput == storedOutput, messageError, storedOutput, newOutput)
 
     def assert_static_output(self, exchange, type: str, skipKeys: List[str], storedUrl: str, requestUrl: str, storedOutput, newOutput):
         if storedUrl != requestUrl:
@@ -849,8 +863,14 @@ class testMainClass(baseMainTestClass):
             if (storedUrl is not None) and (requestUrl is not None):
                 storedUrlParts = storedUrl.split('?')
                 newUrlParts = requestUrl.split('?')
-                storedUrlParams = self.urlencoded_to_dict(storedUrlParts[1])
-                newUrlParams = self.urlencoded_to_dict(newUrlParts[1])
+                storedUrlQuery = exchange.safe_value(storedUrlParts, 1)
+                newUrlQuery = exchange.safe_value(newUrlParts, 1)
+                if (storedUrlQuery is None) and (newUrlQuery is None):
+                    # might be a get request without any query parameters
+                    # example: https://api.gateio.ws/api/v4/delivery/usdt/positions
+                    return
+                storedUrlParams = self.urlencoded_to_dict(storedUrlQuery)
+                newUrlParams = self.urlencoded_to_dict(newUrlQuery)
                 self.assert_new_and_stored_output(exchange, skipKeys, newUrlParams, storedUrlParams)
                 return
         # body is defined
@@ -862,21 +882,26 @@ class testMainClass(baseMainTestClass):
         elif type == 'urlencoded':
             storedOutput = self.urlencoded_to_dict(storedOutput)
             newOutput = self.urlencoded_to_dict(newOutput)
-        if isinstance(storedOutput, list):
-            if not isinstance(newOutput, list):
-                self.assert_static_error(False, 'output type mismatch', storedOutput, newOutput)
-            for i in range(0, len(storedOutput)):
-                storedItem = storedOutput[i]
-                newItem = newOutput[i]
-                self.assert_new_and_stored_output(exchange, skipKeys, newItem, storedItem)
-        else:
-            self.assert_new_and_stored_output(exchange, skipKeys, newOutput, storedOutput)
+        self.assert_new_and_stored_output(exchange, skipKeys, newOutput, storedOutput)
+
+    def sanitize_data_input(self, input):
+        # remove nulls and replace with unefined instead
+        if input is None:
+            return None
+        newInput = []
+        for i in range(0, len(input)):
+            current = input[i]
+            if current == None:  # noqa: E711
+                newInput.append(None)
+            else:
+                newInput.append(current)
+        return newInput
 
     def test_method_statically(self, exchange, method: str, data: object, type: str, skipKeys: List[str]):
         output = None
         requestUrl = None
         try:
-            call_exchange_method_dynamically(exchange, method, data['input'])
+            call_exchange_method_dynamically(exchange, method, self.sanitize_data_input(data['input']))
         except Exception as e:
             if not (isinstance(e, NetworkError)):
                 # if it's not a network error, it means our request was not created succesfully
@@ -894,7 +919,7 @@ class testMainClass(baseMainTestClass):
 
     def init_offline_exchange(self, exchangeName: str):
         markets = self.load_markets_from_file(exchangeName)
-        return init_exchange(exchangeName, {'markets': markets, 'rateLimit': 1, 'httpsProxy': 'http://fake:8080', 'apiKey': 'key', 'secret': 'secretsecret', 'password': 'password', 'uid': 'uid', 'accounts': [{'id': 'myAccount'}], 'options': {'enableUnifiedAccount': True, 'enableUnifiedMargin': False}})
+        return init_exchange(exchangeName, {'markets': markets, 'rateLimit': 1, 'httpsProxy': 'http://fake:8080', 'apiKey': 'key', 'secret': 'secretsecret', 'password': 'password', 'uid': 'uid', 'accounts': [{'id': 'myAccount'}], 'options': {'enableUnifiedAccount': True, 'enableUnifiedMargin': False, 'accessToken': 'token', 'expires': 999999999999999, 'leverageBrackets': {}}})
 
     def test_exchange_statically(self, exchangeName: str, exchangeData: object, testName: Optional[str] = None):
         # instantiate the exchange and make sure that we sink the requests to avoid an actual request
@@ -963,7 +988,9 @@ class testMainClass(baseMainTestClass):
             self.test_bitget(),
             self.test_mexc(),
             self.test_huobi(),
-            self.test_woo()
+            self.test_woo(),
+            self.test_bitmart(),
+            self.test_coinex()
         ]
         (promises)
         successMessage = '[' + self.lang + '][TEST_SUCCESS] brokerId tests passed.'
@@ -1143,6 +1170,32 @@ class testMainClass(baseMainTestClass):
         clientOrderIdSpot = stopOrderRequest['brokerId']
         assert clientOrderIdSpot.startswith(id), 'brokerId does not start with id'
         close(woo)
+
+    def test_bitmart(self):
+        bitmart = self.init_offline_exchange('bitmart')
+        reqHeaders = None
+        id = 'CCXTxBitmart000'
+        assert bitmart.options['brokerId'] == id, 'id not in options'
+        bitmart.load_markets()
+        try:
+            bitmart.create_order('BTC/USDT', 'limit', 'buy', 1, 20000)
+        except Exception as e:
+            reqHeaders = bitmart.last_request_headers
+        assert reqHeaders['X-BM-BROKER-ID'] == id, 'id not in headers'
+        close(bitmart)
+
+    def test_coinex(self):
+        exchange = self.init_offline_exchange('coinex')
+        id = 'x-167673045'
+        assert exchange.options['brokerId'] == id, 'id not in options'
+        spotOrderRequest = None
+        try:
+            exchange.create_order('BTC/USDT', 'limit', 'buy', 1, 20000)
+        except Exception as e:
+            spotOrderRequest = json_parse(exchange.last_request_body)
+        clientOrderId = spotOrderRequest['client_id']
+        assert clientOrderId.startswith(id), 'clientOrderId does not start with id'
+        close(exchange)
 
 # ***** AUTO-TRANSPILER-END *****
 # *******************************

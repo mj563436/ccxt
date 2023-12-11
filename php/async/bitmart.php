@@ -42,6 +42,9 @@ class bitmart extends Exchange {
                 'cancelAllOrders' => true,
                 'cancelOrder' => true,
                 'cancelOrders' => false,
+                'createMarketBuyOrderWithCost' => true,
+                'createMarketOrderWithCost' => false,
+                'createMarketSellOrderWithCost' => false,
                 'createOrder' => true,
                 'createPostOnlyOrder' => true,
                 'createStopLimitOrder' => false,
@@ -601,7 +604,7 @@ class bitmart extends Exchange {
         return Async\async(function () use ($params) {
             /**
              * fetches the current integer timestamp in milliseconds from the exchange server
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {int} the current integer timestamp in milliseconds from the exchange server
              */
             $response = Async\await($this->publicGetSystemTime ($params));
@@ -624,7 +627,7 @@ class bitmart extends Exchange {
         return Async\async(function () use ($params) {
             /**
              * the latest known information on the availability of the exchange API
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=exchange-$status-structure $status structure~
              */
             $options = $this->safe_value($this->options, 'fetchStatus', array());
@@ -900,7 +903,7 @@ class bitmart extends Exchange {
         return Async\async(function () use ($params) {
             /**
              * retrieves data on all markets for bitmart
-             * @param {array} [$params] extra parameters specific to the exchange api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array[]} an array of objects representing market data
              */
             $spot = Async\await($this->fetch_spot_markets($params));
@@ -913,7 +916,7 @@ class bitmart extends Exchange {
         return Async\async(function () use ($params) {
             /**
              * fetches all available $currencies on an exchange
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} an associative dictionary of $currencies
              */
             $response = Async\await($this->publicGetSpotV1Currencies ($params));
@@ -968,7 +971,7 @@ class bitmart extends Exchange {
              * @deprecated
              * please use fetchDepositWithdrawFee instead
              * @param {string} $code unified $currency $code
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=fee-structure fee structure~
              */
             Async\await($this->load_markets());
@@ -1029,7 +1032,7 @@ class bitmart extends Exchange {
             /**
              * fetch the fee for deposits and withdrawals
              * @param {string} $code unified $currency $code
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=fee-structure fee structure~
              */
             Async\await($this->load_markets());
@@ -1143,21 +1146,22 @@ class bitmart extends Exchange {
             /**
              * fetches a price $ticker, a statistical calculation with the information calculated over the past 24 hours for a specific $market
              * @param {string} $symbol unified $symbol of the $market to fetch the $ticker for
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=$ticker-structure $ticker structure~
              */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
             $request = array();
-            $method = null;
+            $response = null;
             if ($market['swap']) {
-                $method = 'publicGetContractV1Tickers';
                 $request['contract_symbol'] = $market['id'];
+                $response = Async\await($this->publicGetContractV1Tickers (array_merge($request, $params)));
             } elseif ($market['spot']) {
-                $method = 'publicGetSpotV1Ticker';
                 $request['symbol'] = $market['id'];
+                $response = Async\await($this->publicGetSpotV1Ticker (array_merge($request, $params)));
+            } else {
+                throw new NotSupported($this->id . ' fetchTicker() does not support ' . $market['type'] . ' markets, only spot and swap markets are accepted');
             }
-            $response = Async\await($this->$method (array_merge($request, $params)));
             //
             // spot
             //
@@ -1228,10 +1232,10 @@ class bitmart extends Exchange {
     public function fetch_tickers(?array $symbols = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($symbols, $params) {
             /**
-             * fetches price $tickers for multiple markets, statistical calculations with the information calculated over the past 24 hours each $market
+             * fetches price $tickers for multiple markets, statistical information calculated over the past 24 hours for each $market
              * @see https://developer-pro.bitmart.com/en/spot/#get-$ticker-of-all-pairs-v2
              * @param {string[]|null} $symbols unified $symbols of the markets to fetch the $ticker for, all $market $tickers are returned if not assigned
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a dictionary of ~@link https://docs.ccxt.com/#/?id=$ticker-structure $ticker structures~
              */
             Async\await($this->load_markets());
@@ -1243,11 +1247,14 @@ class bitmart extends Exchange {
                 $market = $this->market($symbol);
             }
             list($type, $params) = $this->handle_market_type_and_params('fetchTickers', $market, $params);
-            $method = $this->get_supported_mapping($type, array(
-                'spot' => 'publicGetSpotV2Ticker',
-                'swap' => 'publicGetContractV1Tickers',
-            ));
-            $response = Async\await($this->$method ($params));
+            $response = null;
+            if ($type === 'spot') {
+                $response = Async\await($this->publicGetSpotV2Ticker ($params));
+            } elseif ($type === 'swap') {
+                $response = Async\await($this->publicGetContractV1Tickers ($params));
+            } else {
+                throw new NotSupported($this->id . ' fetchTickers() does not support ' . $type . ' markets, only spot and swap markets are accepted');
+            }
             $data = $this->safe_value($response, 'data', array());
             $tickers = $this->safe_value($data, 'tickers', array());
             $result = array();
@@ -1268,7 +1275,7 @@ class bitmart extends Exchange {
              * @see https://developer-pro.bitmart.com/en/futures/#get-$market-depth
              * @param {string} $symbol unified $symbol of the $market to fetch the order book for
              * @param {int} [$limit] the maximum amount of order book entries to return
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} A dictionary of ~@link https://docs.ccxt.com/#/?id=order-book-structure order book structures~ indexed by $market symbols
              */
             Async\await($this->load_markets());
@@ -1342,48 +1349,58 @@ class bitmart extends Exchange {
         //
         // public fetchTrades spot ( $amount = count * price )
         //
-        //     {
-        //          "amount" => "818.94",
-        //          "order_time" => "1637601839035",    // ETH/USDT
-        //          "price" => "4221.99",
-        //          "count" => "0.19397",
-        //          "type" => "buy"
-        //      }
+        //    {
+        //        "amount" => "818.94",
+        //        "order_time" => "1637601839035",    // ETH/USDT
+        //        "price" => "4221.99",
+        //        "count" => "0.19397",
+        //        "type" => "buy"
+        //    }
         //
         // spot => fetchMyTrades
         //
-        //     {
-        //         "tradeId":"182342999769370687",
-        //         "orderId":"183270218784142990",
-        //         "clientOrderId":"183270218784142990",
-        //         "symbol":"ADA_USDT",
-        //         "side":"buy",
-        //         "orderMode":"spot",
-        //         "type":"market",
-        //         "price":"0.245948",
-        //         "size":"20.71",
-        //         "notional":"5.09358308",
-        //         "fee":"0.00509358",
-        //         "feeCoinName":"USDT",
-        //         "tradeRole":"taker",
-        //         "createTime":1695658457836,
-        //     }
+        //    {
+        //        "tradeId":"182342999769370687",
+        //        "orderId":"183270218784142990",
+        //        "clientOrderId":"183270218784142990",
+        //        "symbol":"ADA_USDT",
+        //        "side":"buy",
+        //        "orderMode":"spot",
+        //        "type":"market",
+        //        "price":"0.245948",
+        //        "size":"20.71",
+        //        "notional":"5.09358308",
+        //        "fee":"0.00509358",
+        //        "feeCoinName":"USDT",
+        //        "tradeRole":"taker",
+        //        "createTime":1695658457836,
+        //    }
         //
         // swap => fetchMyTrades
         //
-        //     {
-        //         "order_id" => "230930336848609",
-        //         "trade_id" => "6212604014",
-        //         "symbol" => "BTCUSDT",
-        //         "side" => 3,
-        //         "price" => "26910.4",
-        //         "vol" => "1",
-        //         "exec_type" => "Taker",
-        //         "profit" => false,
-        //         "create_time" => 1695961596692,
-        //         "realised_profit" => "-0.0003",
-        //         "paid_fees" => "0.01614624"
-        //     }
+        //    {
+        //        "order_id" => "230930336848609",
+        //        "trade_id" => "6212604014",
+        //        "symbol" => "BTCUSDT",
+        //        "side" => 3,
+        //        "price" => "26910.4",
+        //        "vol" => "1",
+        //        "exec_type" => "Taker",
+        //        "profit" => false,
+        //        "create_time" => 1695961596692,
+        //        "realised_profit" => "-0.0003",
+        //        "paid_fees" => "0.01614624"
+        //    }
+        //
+        // ws swap
+        //
+        //    {
+        //        'fee' => '-0.000044502',
+        //        'feeCcy' => 'USDT',
+        //        'fillPrice' => '74.17',
+        //        'fillQty' => '1',
+        //        'lastTradeID' => 6802340762
+        //    }
         //
         $timestamp = $this->safe_integer_n($trade, array( 'order_time', 'createTime', 'create_time' ));
         $isPublicTrade = (is_array($trade) && array_key_exists('order_time', $trade));
@@ -1396,7 +1413,7 @@ class bitmart extends Exchange {
             $cost = $this->safe_string($trade, 'amount');
             $side = $this->safe_string($trade, 'type');
         } else {
-            $amount = $this->safe_string_2($trade, 'size', 'vol');
+            $amount = $this->safe_string_n($trade, array( 'size', 'vol', 'fillQty' ));
             $cost = $this->safe_string($trade, 'notional');
             $type = $this->safe_string($trade, 'type');
             $side = $this->parse_order_side($this->safe_string($trade, 'side'));
@@ -1418,14 +1435,14 @@ class bitmart extends Exchange {
         }
         return $this->safe_trade(array(
             'info' => $trade,
-            'id' => $this->safe_string_2($trade, 'tradeId', 'trade_id'),
+            'id' => $this->safe_string_n($trade, array( 'tradeId', 'trade_id', 'lastTradeID' )),
             'order' => $this->safe_string_2($trade, 'orderId', 'order_id'),
             'timestamp' => $timestamp,
             'datetime' => $this->iso8601($timestamp),
             'symbol' => $market['symbol'],
             'type' => $type,
             'side' => $side,
-            'price' => $this->safe_string($trade, 'price'),
+            'price' => $this->safe_string_2($trade, 'price', 'fillPrice'),
             'amount' => $amount,
             'cost' => $cost,
             'takerOrMaker' => $this->safe_string_lower_2($trade, 'tradeRole', 'exec_type'),
@@ -1440,7 +1457,7 @@ class bitmart extends Exchange {
              * @param {string} $symbol unified $symbol of the $market to fetch $trades for
              * @param {int} [$since] timestamp in ms of the earliest trade to fetch
              * @param {int} [$limit] the maximum amount of $trades to fetch
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {Trade[]} a list of ~@link https://docs.ccxt.com/#/?id=public-$trades trade structures~
              */
             Async\await($this->load_markets());
@@ -1481,38 +1498,45 @@ class bitmart extends Exchange {
     public function parse_ohlcv($ohlcv, ?array $market = null): array {
         //
         // spot
-        //
-        //     array(
-        //         "1699512060", // timestamp
-        //         "36746.49", // open
-        //         "36758.71", // high
-        //         "36736.13", // low
-        //         "36755.99", // close
-        //         "2.83965", // base volume
-        //         "104353.57" // quote volume
-        //     )
+        //    array(
+        //        "1699512060", // timestamp
+        //        "36746.49", // open
+        //        "36758.71", // high
+        //        "36736.13", // low
+        //        "36755.99", // close
+        //        "2.83965", // base volume
+        //        "104353.57" // quote volume
+        //    )
         //
         // swap
-        //
-        //     {
-        //         "low_price" => "20090.3",
-        //         "high_price" => "20095.5",
-        //         "open_price" => "20092.6",
-        //         "close_price" => "20091.4",
-        //         "volume" => "8748",
-        //         "timestamp" => 1665002281
-        //     }
+        //    {
+        //        "low_price" => "20090.3",
+        //        "high_price" => "20095.5",
+        //        "open_price" => "20092.6",
+        //        "close_price" => "20091.4",
+        //        "volume" => "8748",
+        //        "timestamp" => 1665002281
+        //    }
         //
         // ws
+        //    array(
+        //        1631056350, // timestamp
+        //        "46532.83", // open
+        //        "46555.71", // high
+        //        "46511.41", // low
+        //        "46555.71", // close
+        //        "0.25", // volume
+        //    )
         //
-        //     array(
-        //         1631056350, // timestamp
-        //         "46532.83", // open
-        //         "46555.71", // high
-        //         "46511.41", // low
-        //         "46555.71", // close
-        //         "0.25", // volume
-        //     )
+        // ws swap
+        //    {
+        //        "symbol":"BTCUSDT",
+        //        "o":"146.24",
+        //        "h":"146.24",
+        //        "l":"146.24",
+        //        "c":"146.24",
+        //        "v":"146"
+        //    }
         //
         if (gettype($ohlcv) === 'array' && array_keys($ohlcv) === array_keys(array_keys($ohlcv))) {
             return array(
@@ -1525,12 +1549,12 @@ class bitmart extends Exchange {
             );
         } else {
             return array(
-                $this->safe_timestamp($ohlcv, 'timestamp'),
-                $this->safe_number($ohlcv, 'open_price'),
-                $this->safe_number($ohlcv, 'high_price'),
-                $this->safe_number($ohlcv, 'low_price'),
-                $this->safe_number($ohlcv, 'close_price'),
-                $this->safe_number($ohlcv, 'volume'),
+                $this->safe_timestamp_2($ohlcv, 'timestamp', 'ts'),
+                $this->safe_number_2($ohlcv, 'open_price', 'o'),
+                $this->safe_number_2($ohlcv, 'high_price', 'h'),
+                $this->safe_number_2($ohlcv, 'low_price', 'l'),
+                $this->safe_number_2($ohlcv, 'close_price', 'c'),
+                $this->safe_number_2($ohlcv, 'volume', 'v'),
             );
         }
     }
@@ -1545,7 +1569,7 @@ class bitmart extends Exchange {
              * @param {string} $timeframe the length of time each candle represents
              * @param {int} [$since] timestamp in ms of the earliest candle to fetch
              * @param {int} [$limit] the maximum amount of candles to fetch
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {int} [$params->until] timestamp of the latest candle in ms
              * @param {boolean} [$params->paginate] *spot only* default false, when true will automatically $paginate by calling this endpoint multiple times. See in the docs all the [availble parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-$params)
              * @return {int[][]} A list of candles ordered, open, high, low, close, volume
@@ -1647,7 +1671,7 @@ class bitmart extends Exchange {
              * @param {string} $symbol unified $market $symbol
              * @param {int} [$since] the earliest time in ms to fetch trades for
              * @param {int} [$limit] the maximum number of trades structures to retrieve
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {int} [$params->until] the latest time in ms to fetch trades for
              * @param {boolean} [$params->marginMode] *spot* whether to fetch trades for margin orders or spot orders, defaults to spot orders (only isolated margin orders are supported)
              * @return {Trade[]} a list of ~@link https://docs.ccxt.com/#/?id=trade-structure trade structures~
@@ -1762,7 +1786,7 @@ class bitmart extends Exchange {
              * @param {string} $symbol unified market $symbol
              * @param {int} [$since] the earliest time in ms to fetch trades for
              * @param {int} [$limit] the maximum number of trades to retrieve
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?$id=trade-structure trade structures~
              */
             Async\await($this->load_markets());
@@ -1835,26 +1859,30 @@ class bitmart extends Exchange {
              * @see https://developer-pro.bitmart.com/en/futures/#get-contract-assets-detail
              * @see https://developer-pro.bitmart.com/en/spot/#get-account-balance
              * @see https://developer-pro.bitmart.com/en/spot/#get-margin-account-details-isolated
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=balance-structure balance structure~
              */
             Async\await($this->load_markets());
             $marketType = null;
             list($marketType, $params) = $this->handle_market_type_and_params('fetchBalance', null, $params);
-            $method = $this->get_supported_mapping($marketType, array(
-                'spot' => 'privateGetSpotV1Wallet',
-                'swap' => 'privateGetContractPrivateAssetsDetail',
-                'account' => 'privateGetAccountV1Wallet',
-                'margin' => 'privateGetSpotV1MarginIsolatedAccount',
-            ));
             $marginMode = $this->safe_string($params, 'marginMode');
             $isMargin = $this->safe_value($params, 'margin', false);
             $params = $this->omit($params, array( 'margin', 'marginMode' ));
             if ($marginMode !== null || $isMargin) {
-                $method = 'privateGetSpotV1MarginIsolatedAccount';
                 $marketType = 'margin';
             }
-            $response = Async\await($this->$method ($params));
+            $response = null;
+            if ($marketType === 'spot') {
+                $response = Async\await($this->privateGetSpotV1Wallet ($params));
+            } elseif ($marketType === 'swap') {
+                $response = Async\await($this->privateGetContractPrivateAssetsDetail ($params));
+            } elseif ($marketType === 'account') {
+                $response = Async\await($this->privateGetAccountV1Wallet ($params));
+            } elseif ($marketType === 'margin') {
+                $response = Async\await($this->privateGetSpotV1MarginIsolatedAccount ($params));
+            } else {
+                throw new NotSupported($this->id . ' fetchBalance() does not support ' . $marketType . ' markets, only spot, swap and account and margin markets are accepted');
+            }
             //
             // spot
             //
@@ -1976,7 +2004,7 @@ class bitmart extends Exchange {
             /**
              * fetch the trading fees for a $market
              * @param {string} $symbol unified $market $symbol
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=fee-structure fee structure~
              */
             Async\await($this->load_markets());
@@ -2167,11 +2195,31 @@ class bitmart extends Exchange {
         return $this->safe_string($statuses, $status, $status);
     }
 
+    public function create_market_buy_order_with_cost(string $symbol, $cost, $params = array ()) {
+        return Async\async(function () use ($symbol, $cost, $params) {
+            /**
+             * create a $market buy order by providing the $symbol and $cost
+             * @see https://developer-pro.bitmart.com/en/spot/#new-order-v2-signed
+             * @param {string} $symbol unified $symbol of the $market to create an order in
+             * @param {float} $cost how much you want to trade in units of the quote currency
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} an ~@link https://docs.ccxt.com/#/?id=order-structure order structure~
+             */
+            Async\await($this->load_markets());
+            $market = $this->market($symbol);
+            if (!$market['spot']) {
+                throw new NotSupported($this->id . ' createMarketBuyOrderWithCost() supports spot orders only');
+            }
+            $params['createMarketBuyOrderRequiresPrice'] = false;
+            return Async\await($this->create_order($symbol, 'market', 'buy', $cost, null, $params));
+        }) ();
+    }
+
     public function create_order(string $symbol, string $type, string $side, $amount, $price = null, $params = array ()) {
         return Async\async(function () use ($symbol, $type, $side, $amount, $price, $params) {
             /**
              * create a trade $order
-             * @see https://developer-pro.bitmart.com/en/spot/#place-spot-$order
+             * @see https://developer-pro.bitmart.com/en/spot/#new-$order-v2-signed
              * @see https://developer-pro.bitmart.com/en/spot/#place-margin-$order
              * @see https://developer-pro.bitmart.com/en/futures/#submit-$order-signed
              * @param {string} $symbol unified $symbol of the $market to create an $order in
@@ -2179,7 +2227,7 @@ class bitmart extends Exchange {
              * @param {string} $side 'buy' or 'sell'
              * @param {float} $amount how much of currency you want to trade in units of base currency
              * @param {float} [$price] the $price at which the $order is to be fullfilled, in units of the quote currency, ignored in $market orders
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {string} [$params->marginMode] 'cross' or 'isolated'
              * @param {string} [$params->leverage] *swap only* leverage level
              * @param {string} [$params->clientOrderId] client $order id of the $order
@@ -2237,7 +2285,7 @@ class bitmart extends Exchange {
          * @param {string} $side 'buy' or 'sell'
          * @param {float} $amount how much of currency you want to trade in units of base currency
          * @param {float} [$price] the $price at which the order is to be fullfilled, in units of the quote currency, ignored in $market orders
-         * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+         * @param {array} [$params] extra parameters specific to the exchange API endpoint
          * @param {int} [$params->leverage] $leverage level
          * @param {boolean} [$params->reduceOnly] *swap only* reduce only
          * @param {string} [$params->marginMode] 'cross' or 'isolated', default is 'cross'
@@ -2310,7 +2358,7 @@ class bitmart extends Exchange {
          * @param {string} $side 'buy' or 'sell'
          * @param {float} $amount how much of currency you want to trade in units of base currency
          * @param {float} [$price] the $price at which the order is to be fullfilled, in units of the quote currency, ignored in $market orders
-         * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+         * @param {array} [$params] extra parameters specific to the exchange API endpoint
          * @param {string} [$params->marginMode] 'cross' or 'isolated'
          * @return {array} an ~@link https://docs.ccxt.com/#/?id=order-structure order structure~
          */
@@ -2339,17 +2387,17 @@ class bitmart extends Exchange {
         } elseif ($isMarketOrder) {
             // for $market buy it requires the $amount of quote currency to spend
             if ($side === 'buy') {
-                $notional = $this->safe_number($params, 'notional');
-                $createMarketBuyOrderRequiresPrice = $this->safe_value($this->options, 'createMarketBuyOrderRequiresPrice', true);
+                $notional = $this->safe_number_2($params, 'cost', 'notional');
+                $params = $this->omit($params, 'cost');
+                $createMarketBuyOrderRequiresPrice = true;
+                list($createMarketBuyOrderRequiresPrice, $params) = $this->handle_option_and_params($params, 'createOrder', 'createMarketBuyOrderRequiresPrice', true);
                 if ($createMarketBuyOrderRequiresPrice) {
-                    if ($price !== null) {
-                        if ($notional === null) {
-                            $amountString = $this->number_to_string($amount);
-                            $priceString = $this->number_to_string($price);
-                            $notional = $this->parse_number(Precise::string_mul($amountString, $priceString));
-                        }
-                    } elseif ($notional === null) {
-                        throw new InvalidOrder($this->id . " createOrder () requires the $price argument with $market buy orders to calculate total order cost ($amount to spend), where cost = $amount * $price-> Supply a $price argument to createOrder() call if you want the cost to be calculated for you from $price and $amount, or, alternatively, add .options['createMarketBuyOrderRequiresPrice'] = false and supply the total cost value in the 'amount' argument or in the 'notional' extra parameter (the exchange-specific behaviour)");
+                    if (($price === null) && ($notional === null)) {
+                        throw new InvalidOrder($this->id . ' createOrder() requires the $price argument for $market buy orders to calculate the total cost to spend ($amount * $price), alternatively set the $createMarketBuyOrderRequiresPrice option or param to false and pass the cost to spend in the $amount argument or in the "notional" extra parameter (the exchange-specific behaviour)');
+                    } else {
+                        $amountString = $this->number_to_string($amount);
+                        $priceString = $this->number_to_string($price);
+                        $notional = $this->parse_number(Precise::string_mul($amountString, $priceString));
                     }
                 } else {
                     $notional = ($notional === null) ? $amount : $notional;
@@ -2377,7 +2425,7 @@ class bitmart extends Exchange {
              * cancels an open $order
              * @param {string} $id $order $id
              * @param {string} $symbol unified $symbol of the $market the $order was made in
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {string} [$params->clientOrderId] *spot only* the client $order $id of the $order to cancel
              * @param {boolean} [$params->stop] *swap only* whether the $order is a $stop $order
              * @return {array} An ~@link https://docs.ccxt.com/#/?$id=$order-structure $order structure~
@@ -2463,7 +2511,7 @@ class bitmart extends Exchange {
              * @see https://developer-pro.bitmart.com/en/spot/#cancel-all-orders
              * @see https://developer-pro.bitmart.com/en/futures/#cancel-all-orders-signed
              * @param {string} $symbol unified $market $symbol of the $market to cancel orders in
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {string} [$params->side] *spot only* 'buy' or 'sell'
              * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
              */
@@ -2575,7 +2623,7 @@ class bitmart extends Exchange {
              * @param {string} $symbol unified $market $symbol
              * @param {int} [$since] the earliest time in ms to fetch open orders for
              * @param {int} [$limit] the maximum number of open order structures to retrieve
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {boolean} [$params->marginMode] *spot* whether to fetch trades for margin orders or spot orders, defaults to spot orders (only isolated margin orders are supported)
              * @param {int} [$params->until] *spot* the latest time in ms to fetch orders for
              * @param {string} [$params->type] *swap* order $type, 'limit' or 'market'
@@ -2683,7 +2731,7 @@ class bitmart extends Exchange {
              * @param {string} $symbol unified $market $symbol of the $market orders were made in
              * @param {int} [$since] the earliest time in ms to fetch orders for
              * @param {int} [$limit] the maximum number of  orde structures to retrieve
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {int} [$params->until] timestamp in ms of the latest entry
              * @param {string} [$params->marginMode] *spot only* 'cross' or 'isolated', for margin trading
              * @return {Order[]} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
@@ -2735,7 +2783,7 @@ class bitmart extends Exchange {
              * @param {string} $symbol unified market $symbol of the market orders were made in
              * @param {int} [$since] timestamp in ms of the earliest order, default is null
              * @param {int} [$limit] max number of orders to return, default is null
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
              */
             return Async\await($this->fetch_orders_by_status('canceled', $symbol, $since, $limit, $params));
@@ -2751,7 +2799,7 @@ class bitmart extends Exchange {
              * @see https://developer-pro.bitmart.com/en/futures/#get-order-detail-keyed
              * @param {string} $id the $id of the order
              * @param {string} $symbol unified $symbol of the $market the order was made in
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {string} [$params->clientOrderId] *spot* fetch the order by client order $id instead of order $id
              * @return {array} An ~@link https://docs.ccxt.com/#/?$id=order-structure order structure~
              */
@@ -2842,7 +2890,7 @@ class bitmart extends Exchange {
             /**
              * fetch the deposit $address for a $currency associated with this account
              * @param {string} $code unified $currency $code
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} an ~@link https://docs.ccxt.com/#/?id=$address-structure $address structure~
              */
             Async\await($this->load_markets());
@@ -2909,7 +2957,7 @@ class bitmart extends Exchange {
              * @param {float} $amount the $amount to withdraw
              * @param {string} $address the $address to withdraw to
              * @param {string} $tag
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=$transaction-structure $transaction structure~
              */
             list($tag, $params) = $this->handle_withdraw_tag_and_params($tag, $params);
@@ -3022,7 +3070,7 @@ class bitmart extends Exchange {
              * fetch information on a deposit
              * @param {string} $id deposit $id
              * @param {string} $code not used by bitmart fetchDeposit ()
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?$id=transaction-structure transaction structure~
              */
             Async\await($this->load_markets());
@@ -3065,7 +3113,7 @@ class bitmart extends Exchange {
              * @param {string} $code unified currency $code
              * @param {int} [$since] the earliest time in ms to fetch deposits for
              * @param {int} [$limit] the maximum number of deposits structures to retrieve
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=transaction-structure transaction structures~
              */
             return Async\await($this->fetch_transactions_by_type('deposit', $code, $since, $limit, $params));
@@ -3078,7 +3126,7 @@ class bitmart extends Exchange {
              * fetch $data on a currency withdrawal via the withdrawal $id
              * @param {string} $id withdrawal $id
              * @param {string} $code not used by bitmart.fetchWithdrawal
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?$id=transaction-structure transaction structure~
              */
             Async\await($this->load_markets());
@@ -3121,7 +3169,7 @@ class bitmart extends Exchange {
              * @param {string} $code unified currency $code
              * @param {int} [$since] the earliest time in ms to fetch withdrawals for
              * @param {int} [$limit] the maximum number of withdrawals structures to retrieve
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=transaction-structure transaction structures~
              */
             return Async\await($this->fetch_transactions_by_type('withdraw', $code, $since, $limit, $params));
@@ -3223,7 +3271,7 @@ class bitmart extends Exchange {
              * @param {string} $symbol unified $market $symbol
              * @param {string} $code unified $currency $code of the $currency to repay
              * @param {string} $amount the $amount to repay
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=margin-loan-structure margin loan structure~
              */
             Async\await($this->load_markets());
@@ -3262,7 +3310,7 @@ class bitmart extends Exchange {
              * @param {string} $symbol unified $market $symbol
              * @param {string} $code unified $currency $code of the $currency to borrow
              * @param {string} $amount the $amount to borrow
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=margin-loan-structure margin loan structure~
              */
             Async\await($this->load_markets());
@@ -3321,19 +3369,13 @@ class bitmart extends Exchange {
 
     public function fetch_isolated_borrow_rate(string $symbol, $params = array ()) {
         return Async\async(function () use ($symbol, $params) {
-            //
-            // @method
-            // @name bitmart#fetchIsolatedBorrowRate
-            // @description fetch the rate of interest to borrow a currency for margin trading
-            // @see https://developer-pro.bitmart.com/en/spot/#get-trading-pair-borrowing-rate-and-amount-keyed
-            // @param {string} $symbol unified $symbol of the $market to fetch the borrow rate for
-            // @param {object} [$params] extra parameters specific to the bitmart api endpoint
-            // <<<<<<< HEAD
-            // @returns {object} a ~@link https://docs.ccxt.com/#/?id=borrow-rate-structure borrow rate structure~
-            // =======
-            // @returns {object} an {@link https://github.com/ccxt/ccxt/wiki/Manual#isolated-borrow-rate-structure isolated borrow rate structure}
-            // >>>>>>> 3215552206edf1cda1ae63d2063535e19973dbe5
-            //
+            /**
+             * fetch the rate of interest to borrow a currency for margin trading
+             * @see https://developer-pro.bitmart.com/en/spot/#get-trading-pair-borrowing-rate-and-amount-keyed
+             * @param {string} $symbol unified $symbol of the $market to fetch the borrow rate for
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {array} an {@link https://github.com/ccxt/ccxt/wiki/Manual#isolated-borrow-rate-structure isolated borrow rate structure}
+             */
             Async\await($this->load_markets());
             $market = $this->market($symbol);
             $request = array(
@@ -3427,7 +3469,7 @@ class bitmart extends Exchange {
             /**
              * fetch the borrow interest rates of all currencies, currently only works for isolated margin
              * @see https://developer-pro.bitmart.com/en/spot/#get-trading-pair-borrowing-rate-and-amount-keyed
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a list of ~@link https://docs.ccxt.com/#/?id=isolated-borrow-rate-structure isolated borrow rate structures~
              */
             Async\await($this->load_markets());
@@ -3485,7 +3527,7 @@ class bitmart extends Exchange {
              * @param {float} $amount amount to transfer
              * @param {string} $fromAccount account to transfer from
              * @param {string} $toAccount account to transfer to
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=transfer-structure transfer structure~
              */
             Async\await($this->load_markets());
@@ -3624,7 +3666,7 @@ class bitmart extends Exchange {
              * @param {string} $code unified $currency $code of the $currency transferred
              * @param {int} [$since] the earliest time in ms to fetch transfers for
              * @param {int} [$limit] the maximum number of transfer structures to retrieve
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {int} [$params->page] the required number of pages, default is 1, max is 1000
              * @param {int} [$params->until] the latest time in ms to fetch transfers for
              * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=transfer-structure transfer structures~
@@ -3689,7 +3731,7 @@ class bitmart extends Exchange {
              * @param {string} $symbol unified $market $symbol when fetch $interest in isolated markets
              * @param {int} [$since] the earliest time in ms to fetch borrrow $interest for
              * @param {int} [$limit] the maximum number of structures to retrieve
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=borrow-$interest-structure borrow $interest structures~
              */
             if ($symbol === null) {
@@ -3828,7 +3870,7 @@ class bitmart extends Exchange {
              * @see https://developer-pro.bitmart.com/en/futures/#submit-$leverage-signed
              * @param {float} $leverage the rate of $leverage
              * @param {string} $symbol unified $market $symbol
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {string} [$params->marginMode] 'isolated' or 'cross'
              * @return {array} response from the exchange
              */
@@ -3858,7 +3900,7 @@ class bitmart extends Exchange {
              * fetch the current funding rate
              * @see https://developer-pro.bitmart.com/en/futures/#get-current-funding-rate
              * @param {string} $symbol unified $market $symbol
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=funding-rate-structure funding rate structure~
              */
             Async\await($this->load_markets());
@@ -3926,7 +3968,7 @@ class bitmart extends Exchange {
              * fetch $data on a single open contract trade position
              * @see https://developer-pro.bitmart.com/en/futures/#get-current-position-keyed
              * @param {string} $symbol unified $market $symbol of the $market the position is held in
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=position-structure position structure~
              */
             Async\await($this->load_markets());
@@ -3976,7 +4018,7 @@ class bitmart extends Exchange {
              * fetch all open contract $positions
              * @see https://developer-pro.bitmart.com/en/futures/#get-current-position-keyed
              * @param {string[]|null} $symbols list of unified $market $symbols
-             * @param {array} [$params] extra parameters specific to the bitmart api endpoint
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=position-structure position structures~
              */
             Async\await($this->load_markets());

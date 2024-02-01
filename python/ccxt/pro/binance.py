@@ -763,27 +763,27 @@ class binance(ccxt.async_support.binance):
     def handle_ohlcv(self, client: Client, message):
         #
         #     {
-        #         "e": "kline",
-        #         "E": 1579482921215,
-        #         "s": "ETHBTC",
-        #         "k": {
-        #             "t": 1579482900000,
-        #             "T": 1579482959999,
-        #             "s": "ETHBTC",
-        #             "i": "1m",
-        #             "f": 158411535,
-        #             "L": 158411550,
-        #             "o": "0.01913200",
-        #             "c": "0.01913500",
-        #             "h": "0.01913700",
-        #             "l": "0.01913200",
-        #             "v": "5.08400000",
-        #             "n": 16,
-        #             "x": False,
-        #             "q": "0.09728060",
-        #             "V": "3.30200000",
-        #             "Q": "0.06318500",
-        #             "B": "0"
+        #         e: 'kline',
+        #         E: 1579482921215,
+        #         s: 'ETHBTC',
+        #         k: {
+        #             t: 1579482900000,
+        #             T: 1579482959999,
+        #             s: 'ETHBTC',
+        #             i: '1m',
+        #             f: 158411535,
+        #             L: 158411550,
+        #             o: '0.01913200',
+        #             c: '0.01913500',
+        #             h: '0.01913700',
+        #             l: '0.01913200',
+        #             v: '5.08400000',
+        #             n: 16,
+        #             x: False,
+        #             q: '0.09728060',
+        #             V: '3.30200000',
+        #             Q: '0.06318500',
+        #             B: '0'
         #         }
         #     }
         #
@@ -843,8 +843,6 @@ class binance(ccxt.async_support.binance):
             self.ohlcvs[symbol][timeframe] = stored
         stored.append(unicorn_fied_data)
         client.resolve(stored, messageHash)
-        # watchOHLCVForSymbols part
-        self.resolve_multiple_ohlcv(client, 'multipleOHLCV::', symbol, timeframe, stored)
 
     def handle_ohlcv_orig(self, client: Client, message):
         #

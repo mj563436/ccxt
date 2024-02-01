@@ -24,7 +24,7 @@ class whitebit extends Exchange {
             'name' => 'WhiteBit',
             'version' => 'v4',
             'countries' => array( 'EE' ),
-            'rateLimit' => 500,
+            'rateLimit' => 50,
             'pro' => true,
             'has' => array(
                 'CORS' => null,
@@ -33,7 +33,6 @@ class whitebit extends Exchange {
                 'swap' => false,
                 'future' => false,
                 'option' => false,
-                'borrowMargin' => false,
                 'cancelAllOrders' => false,
                 'cancelOrder' => true,
                 'cancelOrders' => false,
@@ -72,6 +71,7 @@ class whitebit extends Exchange {
                 'fetchOrderTrades' => true,
                 'fetchPositionMode' => false,
                 'fetchPremiumIndexOHLCV' => false,
+                'fetchStatus' => true,
                 'fetchTicker' => true,
                 'fetchTickers' => true,
                 'fetchTime' => true,
@@ -79,7 +79,8 @@ class whitebit extends Exchange {
                 'fetchTradingFee' => false,
                 'fetchTradingFees' => true,
                 'fetchTransactionFees' => true,
-                'repayMargin' => false,
+                'repayCrossMargin' => false,
+                'repayIsolatedMargin' => false,
                 'setLeverage' => true,
                 'transfer' => true,
                 'withdraw' => true,
@@ -426,8 +427,8 @@ class whitebit extends Exchange {
                 $currency = $response[$id];
                 // breaks down in Python due to utf8 encoding issues on the exchange side
                 // $name = $this->safe_string($currency, 'name');
-                $canDeposit = $this->safe_value($currency, 'can_deposit', true);
-                $canWithdraw = $this->safe_value($currency, 'can_withdraw', true);
+                $canDeposit = $this->safe_bool($currency, 'can_deposit', true);
+                $canWithdraw = $this->safe_bool($currency, 'can_withdraw', true);
                 $active = $canDeposit && $canWithdraw;
                 $code = $this->safe_currency_code($id);
                 $result[$code] = array(
@@ -1420,7 +1421,7 @@ class whitebit extends Exchange {
              * @see https://docs.whitebit.com/private/http-trade-v4/#query-executed-$orders
              * @param {string} $symbol unified $market $symbol of the $market $orders were made in
              * @param {int} [$since] the earliest time in ms to fetch $orders for
-             * @param {int} [$limit] the maximum number of  orde structures to retrieve
+             * @param {int} [$limit] the maximum number of $order structures to retrieve
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {Order[]} a list of ~@link https://docs.ccxt.com/#/?id=$order-structure $order structures~
              */

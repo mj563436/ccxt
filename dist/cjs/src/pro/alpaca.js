@@ -224,7 +224,7 @@ class alpaca extends alpaca$1 {
         const symbol = this.safeSymbol(marketId);
         const datetime = this.safeString(message, 't');
         const timestamp = this.parse8601(datetime);
-        const isSnapshot = this.safeValue(message, 'r', false);
+        const isSnapshot = this.safeBool(message, 'r', false);
         let orderbook = this.safeValue(this.orderbooks, symbol);
         if (orderbook === undefined) {
             orderbook = this.orderBook();
@@ -345,7 +345,7 @@ class alpaca extends alpaca$1 {
          * @description watches information on multiple orders made by the user
          * @param {string} symbol unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
-         * @param {int} [limit] the maximum number of  orde structures to retrieve
+         * @param {int} [limit] the maximum number of order structures to retrieve
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure
          */

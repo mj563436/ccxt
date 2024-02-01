@@ -6,7 +6,7 @@
 
 //  ---------------------------------------------------------------------------
 import Exchange from './abstract/binance.js';
-import { ExchangeError, ArgumentsRequired, ExchangeNotAvailable, InsufficientFunds, OrderNotFound, InvalidOrder, DDoSProtection, InvalidNonce, AuthenticationError, RateLimitExceeded, PermissionDenied, NotSupported, BadRequest, BadSymbol, AccountSuspended, OrderImmediatelyFillable, OnMaintenance, BadResponse, RequestTimeout, OrderNotFillable, MarginModeAlreadySet } from './base/errors.js';
+import { ExchangeError, ArgumentsRequired, OperationFailed, OperationRejected, InsufficientFunds, OrderNotFound, InvalidOrder, DDoSProtection, InvalidNonce, AuthenticationError, RateLimitExceeded, PermissionDenied, NotSupported, BadRequest, BadSymbol, AccountSuspended, OrderImmediatelyFillable, OnMaintenance, BadResponse, RequestTimeout, OrderNotFillable, MarginModeAlreadySet } from './base/errors.js';
 import { Precise } from './base/Precise.js';
 import { TRUNCATE, DECIMAL_PLACES } from './base/functions/number.js';
 import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
@@ -16,7 +16,7 @@ import { ed25519 } from './static_dependencies/noble-curves/ed25519.js';
 //  ---------------------------------------------------------------------------
 /**
  * @class binance
- * @extends Exchange
+ * @augments Exchange
  */
 export default class binance extends Exchange {
     describe() {
@@ -44,13 +44,20 @@ export default class binance extends Exchange {
                 'closeAllPositions': false,
                 'closePosition': false,
                 'createDepositAddress': false,
+                'createMarketBuyOrderWithCost': true,
+                'createMarketOrderWithCost': true,
+                'createMarketSellOrderWithCost': true,
                 'createOrder': true,
                 'createOrders': true,
                 'createPostOnlyOrder': true,
                 'createReduceOnlyOrder': true,
                 'createStopLimitOrder': true,
+                'createStopLossOrder': true,
                 'createStopMarketOrder': false,
                 'createStopOrder': true,
+                'createTakeProfitOrder': true,
+                'createTrailingPercentOrder': true,
+                'createTriggerOrder': true,
                 'editOrder': true,
                 'fetchAccounts': undefined,
                 'fetchBalance': true,
@@ -218,6 +225,7 @@ export default class binance extends Exchange {
                         'margin/allPairs': 0.1,
                         'margin/priceIndex': 1,
                         // these endpoints require this.apiKey + this.secret
+                        'spot/delist-schedule': 10,
                         'asset/assetDividend': 1,
                         'asset/dribblet': 0.1,
                         'asset/transfer': 0.1,
@@ -227,6 +235,7 @@ export default class binance extends Exchange {
                         'asset/convert-transfer/queryByPage': 0.033335,
                         'asset/wallet/balance': 6,
                         'asset/custody/transfer-history': 6,
+                        'margin/borrow-repay': 1,
                         'margin/loan': 1,
                         'margin/repay': 1,
                         'margin/account': 1,
@@ -302,6 +311,7 @@ export default class binance extends Exchange {
                         'convert/exchangeInfo': 50,
                         'convert/assetInfo': 10,
                         'convert/orderStatus': 0.6667,
+                        'convert/limit/queryOpenOrders': 20.001,
                         'account/status': 0.1,
                         'account/apiTradingStatus': 0.1,
                         'account/apiRestrictions/ipRestriction': 0.1,
@@ -341,6 +351,16 @@ export default class binance extends Exchange {
                         'lending/union/interestHistory': 0.1,
                         'lending/project/list': 0.1,
                         'lending/project/position/list': 0.1,
+                        // eth-staking
+                        'eth-staking/eth/history/stakingHistory': 15,
+                        'eth-staking/eth/history/redemptionHistory': 15,
+                        'eth-staking/eth/history/rewardsHistory': 15,
+                        'eth-staking/eth/quota': 15,
+                        'eth-staking/eth/history/rateHistory': 15,
+                        'eth-staking/account': 15,
+                        'eth-staking/wbeth/history/wrapHistory': 15,
+                        'eth-staking/wbeth/history/unwrapHistory': 15,
+                        'eth-staking/eth/history/wbethRewardsHistory': 15,
                         // mining endpoints
                         'mining/pub/algoList': 0.1,
                         'mining/pub/coinList': 0.1,
@@ -468,6 +488,7 @@ export default class binance extends Exchange {
                         'capital/withdraw/apply': 4.0002,
                         'capital/contract/convertible-coins': 4.0002,
                         'capital/deposit/credit-apply': 0.1,
+                        'margin/borrow-repay': 20.001,
                         'margin/transfer': 4.0002,
                         'margin/loan': 20.001,
                         'margin/repay': 20.001,
@@ -542,6 +563,13 @@ export default class binance extends Exchange {
                         'staking/purchase': 0.1,
                         'staking/redeem': 0.1,
                         'staking/setAutoStaking': 0.1,
+                        // eth-staking
+                        'eth-staking/eth/stake': 15,
+                        'eth-staking/eth/redeem': 15,
+                        'eth-staking/wbeth/wrap': 15,
+                        // mining endpoints
+                        'mining/hash-transfer/config': 0.5,
+                        'mining/hash-transfer/config/cancel': 0.5,
                         'portfolio/repay': 20.001,
                         'loan/vip/renew': 40.002,
                         'loan/vip/borrow': 40.002,
@@ -555,6 +583,8 @@ export default class binance extends Exchange {
                         'loan/vip/repay': 40.002,
                         'convert/getQuote': 1.3334,
                         'convert/acceptQuote': 3.3335,
+                        'convert/limit/placeOrder': 3.3335,
+                        'convert/limit/cancelOrder': 1.3334,
                         'portfolio/auto-collection': 150,
                         'portfolio/asset-collection': 6,
                         'portfolio/bnb-transfer': 150,
@@ -595,11 +625,13 @@ export default class binance extends Exchange {
                 },
                 'sapiV2': {
                     'get': {
+                        'eth-staking/account': 15,
                         'sub-account/futures/account': 0.1,
                         'sub-account/futures/accountSummary': 1,
                         'sub-account/futures/positionRisk': 0.1,
                     },
                     'post': {
+                        'eth-staking/eth/stake': 15,
                         'sub-account/subAccountApi/ipRestriction': 20.001, // Weight(UID): 3000 => cost = 0.006667 * 3000 = 20.001
                     },
                 },
@@ -926,6 +958,7 @@ export default class binance extends Exchange {
                 },
                 'papi': {
                     'get': {
+                        'ping': 1,
                         'um/order': 1,
                         'um/openOrder': 1,
                         'um/openOrders': 1,
@@ -1402,233 +1435,885 @@ export default class binance extends Exchange {
                     'BUSD': 'USD',
                 },
             },
-            // https://binance-docs.github.io/apidocs/spot/en/#error-codes-2
             'exceptions': {
+                'spot': {
+                    // https://binance-docs.github.io/apidocs/spot/en/#error-codes
+                    'exact': {
+                        '-1000': OperationFailed,
+                        '-1001': OperationFailed,
+                        '-1002': AuthenticationError,
+                        '-1003': RateLimitExceeded,
+                        '-1004': OperationFailed,
+                        '-1006': OperationFailed,
+                        '-1007': RequestTimeout,
+                        '-1008': OperationFailed,
+                        '-1010': OperationFailed,
+                        '-1013': OperationFailed,
+                        '-1014': InvalidOrder,
+                        '-1015': RateLimitExceeded,
+                        '-1016': BadRequest,
+                        '-1020': BadRequest,
+                        '-1021': InvalidNonce,
+                        '-1022': AuthenticationError,
+                        '-1099': AuthenticationError,
+                        '-1100': BadRequest,
+                        '-1101': BadRequest,
+                        '-1102': BadRequest,
+                        '-1103': BadRequest,
+                        '-1104': BadRequest,
+                        '-1105': BadRequest,
+                        '-1106': BadRequest,
+                        '-1108': BadRequest,
+                        '-1111': BadRequest,
+                        '-1112': OperationFailed,
+                        '-1114': BadRequest,
+                        '-1115': BadRequest,
+                        '-1116': BadRequest,
+                        '-1117': BadRequest,
+                        '-1118': BadRequest,
+                        '-1119': BadRequest,
+                        '-1120': BadRequest,
+                        '-1121': BadSymbol,
+                        '-1125': AuthenticationError,
+                        '-1127': BadRequest,
+                        '-1128': BadRequest,
+                        '-1130': BadRequest,
+                        '-1131': BadRequest,
+                        '-1134': BadRequest,
+                        '-1135': BadRequest,
+                        '-1145': BadRequest,
+                        '-1151': BadSymbol,
+                        '-2008': AuthenticationError,
+                        '-2010': InvalidOrder,
+                        '-2011': OrderNotFound,
+                        '-2013': OrderNotFound,
+                        '-2014': AuthenticationError,
+                        '-2015': AuthenticationError,
+                        '-2016': OperationRejected,
+                        '-2021': BadResponse,
+                        '-2022': BadResponse,
+                        '-2026': InvalidOrder,
+                        // 3xxx errors are available only for spot
+                        '-3000': OperationFailed,
+                        '-3001': AuthenticationError,
+                        '-3002': BadSymbol,
+                        '-3003': BadRequest,
+                        '-3004': OperationRejected,
+                        '-3005': BadRequest,
+                        '-3006': BadRequest,
+                        '-3007': OperationFailed,
+                        '-3008': BadRequest,
+                        '-3009': OperationRejected,
+                        '-3010': BadRequest,
+                        '-3011': BadRequest,
+                        '-3012': OperationRejected,
+                        '-3013': BadRequest,
+                        '-3014': AccountSuspended,
+                        '-3015': BadRequest,
+                        '-3016': BadRequest,
+                        '-3017': OperationRejected,
+                        '-3018': AccountSuspended,
+                        '-3019': AccountSuspended,
+                        '-3020': BadRequest,
+                        '-3021': BadRequest,
+                        '-3022': AccountSuspended,
+                        '-3023': OperationRejected,
+                        '-3024': OperationRejected,
+                        '-3025': BadRequest,
+                        '-3026': BadRequest,
+                        '-3027': BadSymbol,
+                        '-3028': BadSymbol,
+                        '-3029': OperationFailed,
+                        '-3036': AccountSuspended,
+                        '-3037': OperationFailed,
+                        '-3038': BadRequest,
+                        '-3041': InsufficientFunds,
+                        '-3042': BadRequest,
+                        '-3043': PermissionDenied,
+                        '-3044': OperationFailed,
+                        '-3045': OperationFailed,
+                        '-3999': PermissionDenied,
+                        '-4001': BadRequest,
+                        '-4002': BadRequest,
+                        '-4003': BadRequest,
+                        '-4004': AuthenticationError,
+                        '-4005': RateLimitExceeded,
+                        '-4006': BadRequest,
+                        '-4007': PermissionDenied,
+                        '-4008': PermissionDenied,
+                        '-4009': ExchangeError,
+                        '-4010': PermissionDenied,
+                        '-4011': BadRequest,
+                        '-4012': PermissionDenied,
+                        '-4013': AuthenticationError,
+                        '-4014': OperationFailed,
+                        '-4015': PermissionDenied,
+                        '-4016': PermissionDenied,
+                        '-4017': PermissionDenied,
+                        '-4018': BadSymbol,
+                        '-4019': BadRequest,
+                        '-4021': BadRequest,
+                        '-4022': BadRequest,
+                        '-4023': OperationFailed,
+                        '-4024': InsufficientFunds,
+                        '-4025': InsufficientFunds,
+                        '-4026': InsufficientFunds,
+                        '-4027': OperationFailed,
+                        '-4028': BadRequest,
+                        '-4029': BadRequest,
+                        '-4030': BadResponse,
+                        '-4031': OperationFailed,
+                        '-4032': OperationFailed,
+                        '-4033': BadRequest,
+                        '-4034': OperationRejected,
+                        '-4035': PermissionDenied,
+                        '-4036': PermissionDenied,
+                        '-4037': OperationFailed,
+                        '-4038': OperationFailed,
+                        '-4039': PermissionDenied,
+                        '-4040': OperationRejected,
+                        '-4041': OperationFailed,
+                        '-4042': OperationRejected,
+                        '-4043': OperationRejected,
+                        '-4044': PermissionDenied,
+                        '-4045': OperationFailed,
+                        '-4046': AuthenticationError,
+                        '-4047': BadRequest,
+                        '-4060': OperationFailed,
+                        '-5001': BadRequest,
+                        '-5002': InsufficientFunds,
+                        '-5003': InsufficientFunds,
+                        '-5004': OperationRejected,
+                        '-5005': OperationRejected,
+                        '-5006': OperationFailed,
+                        '-5007': BadRequest,
+                        '-5008': OperationRejected,
+                        '-5009': BadSymbol,
+                        '-5010': OperationFailed,
+                        '-5011': BadRequest,
+                        '-5012': OperationFailed,
+                        '-5013': InsufficientFunds,
+                        '-5021': BadRequest,
+                        '-5022': BadRequest,
+                        '-6001': BadSymbol,
+                        '-6003': PermissionDenied,
+                        '-6004': BadRequest,
+                        '-6005': BadRequest,
+                        '-6006': BadRequest,
+                        '-6007': OperationFailed,
+                        '-6008': OperationFailed,
+                        '-6009': RateLimitExceeded,
+                        '-6011': OperationRejected,
+                        '-6012': InsufficientFunds,
+                        '-6013': BadResponse,
+                        '-6014': OperationRejected,
+                        '-6015': BadRequest,
+                        '-6016': BadRequest,
+                        '-6017': PermissionDenied,
+                        '-6018': InsufficientFunds,
+                        '-6019': OperationRejected,
+                        '-6020': BadRequest,
+                        '-7001': BadRequest,
+                        '-7002': BadRequest,
+                        '-10001': OperationFailed,
+                        '-10002': BadRequest,
+                        '-10005': BadResponse,
+                        '-10007': BadRequest,
+                        '-10008': BadRequest,
+                        '-10009': BadRequest,
+                        '-10010': BadRequest,
+                        '-10011': InsufficientFunds,
+                        '-10012': BadRequest,
+                        '-10013': InsufficientFunds,
+                        '-10015': OperationFailed,
+                        '-10016': OperationFailed,
+                        '-10017': OperationRejected,
+                        '-10018': BadRequest,
+                        '-10019': BadRequest,
+                        '-10020': BadRequest,
+                        '-10021': InvalidOrder,
+                        '-10022': BadRequest,
+                        '-10023': OperationFailed,
+                        '-10024': BadRequest,
+                        '-10025': OperationFailed,
+                        '-10026': BadRequest,
+                        '-10028': BadRequest,
+                        '-10029': OperationRejected,
+                        '-10030': OperationRejected,
+                        '-10031': OperationRejected,
+                        '-10032': OperationFailed,
+                        '-10034': OperationRejected,
+                        '-10039': OperationRejected,
+                        '-10040': OperationRejected,
+                        '-10041': OperationFailed,
+                        '-10042': BadSymbol,
+                        '-10043': OperationRejected,
+                        '-10044': OperationRejected,
+                        '-10045': OperationRejected,
+                        '-10046': OperationRejected,
+                        '-10047': PermissionDenied,
+                        '-11008': OperationRejected,
+                        '-12014': RateLimitExceeded,
+                        // BLVT
+                        '-13000': OperationRejected,
+                        '-13001': OperationRejected,
+                        '-13002': OperationRejected,
+                        '-13003': PermissionDenied,
+                        '-13004': OperationRejected,
+                        '-13005': OperationRejected,
+                        '-13006': OperationRejected,
+                        '-13007': PermissionDenied,
+                        // 18xxx - BINANCE CODE
+                        '-18002': OperationRejected,
+                        '-18003': OperationRejected,
+                        '-18004': OperationRejected,
+                        '-18005': PermissionDenied,
+                        '-18006': OperationRejected,
+                        '-18007': OperationRejected,
+                        // spot & futures algo (TBD for OPTIONS & PORTFOLIO MARGIN)
+                        '-20121': BadSymbol,
+                        '-20124': BadRequest,
+                        '-20130': BadRequest,
+                        '-20132': BadRequest,
+                        '-20194': BadRequest,
+                        '-20195': BadRequest,
+                        '-20196': BadRequest,
+                        '-20198': OperationRejected,
+                        '-20204': BadRequest,
+                        // 21xxx - PORTFOLIO MARGIN
+                        '-21001': BadRequest,
+                        '-21002': BadRequest,
+                        '-21003': BadResponse,
+                        '-21004': OperationRejected,
+                        '-21005': InsufficientFunds,
+                        '-21006': OperationFailed,
+                        '-21007': OperationFailed,
+                        '-32603': BadRequest,
+                        '400002': BadRequest,
+                        '100001003': AuthenticationError,
+                        '200003903': AuthenticationError, // undocumented, {"code":200003903,"msg":"Your identity verification has been rejected. Please complete identity verification again."}
+                    },
+                },
+                'linear': {
+                    // https://binance-docs.github.io/apidocs/futures/en/#error-codes
+                    'exact': {
+                        '-1000': OperationFailed,
+                        '-1001': OperationFailed,
+                        '-1002': AuthenticationError,
+                        '-1003': RateLimitExceeded,
+                        '-1004': OperationRejected,
+                        '-1005': PermissionDenied,
+                        '-1006': OperationFailed,
+                        '-1007': RequestTimeout,
+                        '-1008': OperationFailed,
+                        '-1010': OperationFailed,
+                        '-1011': PermissionDenied,
+                        '-1013': BadRequest,
+                        '-1014': InvalidOrder,
+                        '-1015': RateLimitExceeded,
+                        '-1016': BadRequest,
+                        '-1020': BadRequest,
+                        '-1021': InvalidNonce,
+                        '-1022': AuthenticationError,
+                        '-1023': BadRequest,
+                        '-1099': AuthenticationError,
+                        '-1100': BadRequest,
+                        '-1101': BadRequest,
+                        '-1102': BadRequest,
+                        '-1103': BadRequest,
+                        '-1104': BadRequest,
+                        '-1105': BadRequest,
+                        '-1106': BadRequest,
+                        '-1108': BadSymbol,
+                        '-1109': PermissionDenied,
+                        '-1110': BadRequest,
+                        '-1111': BadRequest,
+                        '-1112': OperationFailed,
+                        '-1113': BadRequest,
+                        '-1114': BadRequest,
+                        '-1115': BadRequest,
+                        '-1116': BadRequest,
+                        '-1117': BadRequest,
+                        '-1118': BadRequest,
+                        '-1119': BadRequest,
+                        '-1120': BadRequest,
+                        '-1121': BadSymbol,
+                        '-1122': BadRequest,
+                        '-1125': AuthenticationError,
+                        '-1126': BadSymbol,
+                        '-1127': BadRequest,
+                        '-1128': BadRequest,
+                        '-1130': BadRequest,
+                        '-1136': BadRequest,
+                        '-2010': OrderNotFound,
+                        '-2011': OrderNotFound,
+                        '-2012': OperationFailed,
+                        '-2013': OrderNotFound,
+                        '-2014': AuthenticationError,
+                        '-2015': AuthenticationError,
+                        '-2016': OperationRejected,
+                        '-2017': PermissionDenied,
+                        '-2018': InsufficientFunds,
+                        '-2019': InsufficientFunds,
+                        '-2020': OperationFailed,
+                        '-2021': OrderImmediatelyFillable,
+                        '-2022': InvalidOrder,
+                        '-2023': OperationFailed,
+                        '-2024': InsufficientFunds,
+                        '-2025': OperationRejected,
+                        '-2026': InvalidOrder,
+                        '-2027': OperationRejected,
+                        '-2028': OperationRejected,
+                        '-4000': InvalidOrder,
+                        '-4001': BadRequest,
+                        '-4002': BadRequest,
+                        '-4003': BadRequest,
+                        '-4004': BadRequest,
+                        '-4005': BadRequest,
+                        '-4006': BadRequest,
+                        '-4007': BadRequest,
+                        '-4008': BadRequest,
+                        '-4009': BadRequest,
+                        '-4010': BadRequest,
+                        '-4011': BadRequest,
+                        '-4012': BadRequest,
+                        '-4013': BadRequest,
+                        '-4014': BadRequest,
+                        '-4015': BadRequest,
+                        '-4016': OperationRejected,
+                        '-4017': BadRequest,
+                        '-4018': BadRequest,
+                        '-4019': OperationRejected,
+                        '-4020': BadRequest,
+                        '-4021': BadRequest,
+                        '-4022': BadRequest,
+                        '-4023': BadRequest,
+                        '-4024': BadRequest,
+                        '-4025': BadRequest,
+                        '-4026': BadRequest,
+                        '-4027': BadRequest,
+                        '-4028': BadRequest,
+                        '-4029': BadRequest,
+                        '-4030': BadRequest,
+                        '-4031': BadRequest,
+                        '-4032': OperationRejected,
+                        '-4033': BadRequest,
+                        '-4044': BadRequest,
+                        '-4045': OperationRejected,
+                        '-4046': OperationRejected,
+                        '-4047': OperationRejected,
+                        '-4048': OperationRejected,
+                        '-4049': BadRequest,
+                        '-4050': InsufficientFunds,
+                        '-4051': InsufficientFunds,
+                        '-4052': OperationRejected,
+                        '-4053': BadRequest,
+                        '-4054': OperationRejected,
+                        '-4055': BadRequest,
+                        '-4056': AuthenticationError,
+                        '-4057': AuthenticationError,
+                        '-4058': BadRequest,
+                        '-4059': OperationRejected,
+                        '-4060': BadRequest,
+                        '-4061': BadRequest,
+                        '-4062': BadRequest,
+                        '-4063': BadRequest,
+                        '-4064': BadRequest,
+                        '-4065': BadRequest,
+                        '-4066': BadRequest,
+                        '-4067': OperationRejected,
+                        '-4068': OperationRejected,
+                        '-4069': BadRequest,
+                        '-4070': BadRequest,
+                        '-4071': BadRequest,
+                        '-4072': OperationRejected,
+                        '-4073': BadRequest,
+                        '-4074': OperationRejected,
+                        '-4075': BadRequest,
+                        '-4076': OperationRejected,
+                        '-4077': OperationRejected,
+                        '-4078': OperationFailed,
+                        '-4079': BadRequest,
+                        '-4080': PermissionDenied,
+                        '-4081': BadRequest,
+                        '-4082': OperationRejected,
+                        '-4083': OperationFailed,
+                        '-4084': BadRequest,
+                        '-4085': BadRequest,
+                        '-4086': BadRequest,
+                        '-4087': PermissionDenied,
+                        '-4088': PermissionDenied,
+                        '-4104': BadRequest,
+                        '-4114': BadRequest,
+                        '-4115': BadRequest,
+                        '-4118': OperationRejected,
+                        '-4131': OperationRejected,
+                        '-4135': BadRequest,
+                        '-4137': BadRequest,
+                        '-4138': BadRequest,
+                        '-4139': BadRequest,
+                        '-4140': BadRequest,
+                        '-4141': OperationRejected,
+                        '-4142': OrderImmediatelyFillable,
+                        '-4144': BadSymbol,
+                        '-4164': OperationRejected,
+                        '-4165': BadRequest,
+                        '-4167': BadRequest,
+                        '-4168': BadRequest,
+                        '-4169': OperationRejected,
+                        '-4170': OperationRejected,
+                        '-4171': OperationRejected,
+                        '-4172 ': OperationRejected,
+                        '-4183': BadRequest,
+                        '-4184': BadRequest,
+                        '-4192': PermissionDenied,
+                        '-4202': PermissionDenied,
+                        '-4203': PermissionDenied,
+                        '-4205': PermissionDenied,
+                        '-4206': PermissionDenied,
+                        '-4208': OperationRejected,
+                        '-4209': OperationRejected,
+                        '-4210': BadRequest,
+                        '-4211': BadRequest,
+                        '-4400': PermissionDenied,
+                        '-4401': PermissionDenied,
+                        '-4402': PermissionDenied,
+                        '-4403': PermissionDenied,
+                        '-5021': OrderNotFillable,
+                        '-5022': OrderNotFillable,
+                        '-5024': OperationRejected,
+                        '-5025': OperationRejected,
+                        '-5026': OperationRejected,
+                        '-5027': OperationRejected,
+                        '-5028': BadRequest,
+                        '-5037': BadRequest,
+                        '-5038': BadRequest,
+                        '-5039': BadRequest,
+                        '-5040': BadRequest,
+                        '-5041': OperationFailed,
+                        //
+                        // spot & futures algo (TBD for OPTIONS & PORTFOLIO MARGIN)
+                        //
+                        '-20121': BadSymbol,
+                        '-20124': BadRequest,
+                        '-20130': BadRequest,
+                        '-20132': BadRequest,
+                        '-20194': BadRequest,
+                        '-20195': BadRequest,
+                        '-20196': BadRequest,
+                        '-20198': OperationRejected,
+                        '-20204': BadRequest, // The notional of USD is less or more than the limit.
+                    },
+                },
+                'inverse': {
+                    // https://binance-docs.github.io/apidocs/delivery/en/#error-codes
+                    'exact': {
+                        '-1000': OperationFailed,
+                        '-1001': OperationFailed,
+                        '-1002': AuthenticationError,
+                        '-1003': RateLimitExceeded,
+                        '-1004': OperationRejected,
+                        '-1005': PermissionDenied,
+                        '-1006': OperationFailed,
+                        '-1007': RequestTimeout,
+                        '-1010': OperationFailed,
+                        '-1011': PermissionDenied,
+                        '-1013': BadRequest,
+                        '-1014': InvalidOrder,
+                        '-1015': RateLimitExceeded,
+                        '-1016': BadRequest,
+                        '-1020': BadRequest,
+                        '-1021': InvalidNonce,
+                        '-1022': AuthenticationError,
+                        '-1023': BadRequest,
+                        '-1100': BadRequest,
+                        '-1101': BadRequest,
+                        '-1102': BadRequest,
+                        '-1103': BadRequest,
+                        '-1104': BadRequest,
+                        '-1105': BadRequest,
+                        '-1106': BadRequest,
+                        '-1108': BadSymbol,
+                        '-1109': AuthenticationError,
+                        '-1110': BadSymbol,
+                        '-1111': BadRequest,
+                        '-1112': OperationFailed,
+                        '-1113': BadRequest,
+                        '-1114': BadRequest,
+                        '-1115': BadRequest,
+                        '-1116': BadRequest,
+                        '-1117': BadRequest,
+                        '-1118': BadRequest,
+                        '-1119': BadRequest,
+                        '-1120': BadRequest,
+                        '-1121': BadSymbol,
+                        '-1125': AuthenticationError,
+                        '-1127': BadRequest,
+                        '-1128': BadRequest,
+                        '-1130': BadRequest,
+                        '-1136': BadRequest,
+                        '-2010': InvalidOrder,
+                        '-2011': OrderNotFound,
+                        '-2013': OrderNotFound,
+                        '-2014': AuthenticationError,
+                        '-2015': AuthenticationError,
+                        '-2016': OperationRejected,
+                        '-2018': InsufficientFunds,
+                        '-2019': InsufficientFunds,
+                        '-2020': OperationFailed,
+                        '-2021': OrderImmediatelyFillable,
+                        '-2022': InvalidOrder,
+                        '-2023': OperationFailed,
+                        '-2024': BadRequest,
+                        '-2025': OperationRejected,
+                        '-2026': InvalidOrder,
+                        '-2027': OperationRejected,
+                        '-2028': OperationRejected,
+                        '-4000': InvalidOrder,
+                        '-4001': BadRequest,
+                        '-4002': BadRequest,
+                        '-4003': BadRequest,
+                        '-4004': BadRequest,
+                        '-4005': BadRequest,
+                        '-4006': BadRequest,
+                        '-4007': BadRequest,
+                        '-4008': BadRequest,
+                        '-4009': BadRequest,
+                        '-4010': BadRequest,
+                        '-4011': BadRequest,
+                        '-4012': BadRequest,
+                        '-4013': BadRequest,
+                        '-4014': BadRequest,
+                        '-4015': BadRequest,
+                        '-4016': BadRequest,
+                        '-4017': BadRequest,
+                        '-4018': BadRequest,
+                        '-4019': OperationRejected,
+                        '-4020': BadRequest,
+                        '-4021': BadRequest,
+                        '-4022': BadRequest,
+                        '-4023': BadRequest,
+                        '-4024': BadRequest,
+                        '-4025': BadRequest,
+                        '-4026': BadRequest,
+                        '-4027': BadRequest,
+                        '-4028': BadRequest,
+                        '-4029': BadRequest,
+                        '-4030': BadRequest,
+                        '-4031': BadRequest,
+                        '-4032': OperationRejected,
+                        '-4033': BadRequest,
+                        '-4044': BadRequest,
+                        '-4045': OperationRejected,
+                        '-4046': BadRequest,
+                        '-4047': OperationRejected,
+                        '-4048': OperationRejected,
+                        '-4049': OperationRejected,
+                        '-4050': InsufficientFunds,
+                        '-4051': InsufficientFunds,
+                        '-4052': OperationRejected,
+                        '-4053': OperationRejected,
+                        '-4054': OperationRejected,
+                        '-4055': BadRequest,
+                        '-4056': AuthenticationError,
+                        '-4057': AuthenticationError,
+                        '-4058': BadRequest,
+                        '-4059': OperationRejected,
+                        '-4060': BadRequest,
+                        '-4061': OperationRejected,
+                        '-4062': BadRequest,
+                        //
+                        '-4067': OperationRejected,
+                        '-4068': OperationRejected,
+                        '-4082': OperationRejected,
+                        '-4083': OperationRejected,
+                        '-4084': BadRequest,
+                        '-4086': BadRequest,
+                        '-4087': BadSymbol,
+                        '-4088': BadRequest,
+                        '-4089': PermissionDenied,
+                        '-4090': PermissionDenied,
+                        '-4104': BadRequest,
+                        '-4110': BadRequest,
+                        '-4111': BadRequest,
+                        '-4112': OperationRejected,
+                        '-4113': OperationRejected,
+                        '-4135': BadRequest,
+                        '-4137': BadRequest,
+                        '-4138': BadRequest,
+                        '-4139': BadRequest,
+                        '-4142': OrderImmediatelyFillable,
+                        '-4150': OperationRejected,
+                        '-4151': BadRequest,
+                        '-4152': BadRequest,
+                        '-4154': BadRequest,
+                        '-4155': BadRequest,
+                        '-4178': BadRequest,
+                        '-4192': PermissionDenied,
+                        '-4194': PermissionDenied,
+                        '-4195': PermissionDenied,
+                        '-4196': BadRequest,
+                        '-4197': OperationRejected,
+                        '-4198': OperationRejected,
+                        '-4199': BadRequest,
+                        '-4200': PermissionDenied,
+                        '-4201': PermissionDenied,
+                        '-4202': OperationRejected,
+                        '-4188': BadRequest,
+                        //
+                        // spot & futures algo
+                        //
+                        '-20121': BadSymbol,
+                        '-20124': BadRequest,
+                        '-20130': BadRequest,
+                        '-20132': BadRequest,
+                        '-20194': BadRequest,
+                        '-20195': BadRequest,
+                        '-20196': BadRequest,
+                        '-20198': OperationRejected,
+                        '-20204': BadRequest, // The notional of USD is less or more than the limit.
+                    },
+                },
+                'option': {
+                    // https://binance-docs.github.io/apidocs/voptions/en/#error-codes
+                    'exact': {
+                        '-1000': OperationFailed,
+                        '-1001': OperationFailed,
+                        '-1002': AuthenticationError,
+                        '-1008': RateLimitExceeded,
+                        '-1014': InvalidOrder,
+                        '-1015': RateLimitExceeded,
+                        '-1016': BadRequest,
+                        '-1020': BadRequest,
+                        '-1021': InvalidNonce,
+                        '-1022': AuthenticationError,
+                        '-1100': BadRequest,
+                        '-1101': BadRequest,
+                        '-1102': BadRequest,
+                        '-1103': BadRequest,
+                        '-1104': BadRequest,
+                        '-1105': BadRequest,
+                        '-1106': BadRequest,
+                        '-1111': BadRequest,
+                        '-1115': BadRequest,
+                        '-1116': BadRequest,
+                        '-1117': BadRequest,
+                        '-1118': BadRequest,
+                        '-1119': BadRequest,
+                        '-1120': BadRequest,
+                        '-1121': BadSymbol,
+                        '-1125': AuthenticationError,
+                        '-1127': BadRequest,
+                        '-1128': BadSymbol,
+                        '-1129': BadSymbol,
+                        '-1130': BadRequest,
+                        '-1131': BadRequest,
+                        '-2010': InvalidOrder,
+                        '-2013': OrderNotFound,
+                        '-2014': AuthenticationError,
+                        '-2015': AuthenticationError,
+                        '-2018': InsufficientFunds,
+                        '-2027': InsufficientFunds,
+                        '-3029': OperationFailed,
+                        '-4001': BadRequest,
+                        '-4002': BadRequest,
+                        '-4003': BadRequest,
+                        '-4004': BadRequest,
+                        '-4005': BadRequest,
+                        '-4013': BadRequest,
+                        '-4029': BadRequest,
+                        '-4030': BadRequest,
+                        '-4055': BadRequest, // AMOUNT_MUST_BE_POSITIVE
+                    },
+                },
+                'portfolioMargin': {
+                    'exact': {
+                        '-1000': OperationFailed,
+                        '-1001': OperationFailed,
+                        '-1002': AuthenticationError,
+                        '-1003': RateLimitExceeded,
+                        '-1004': OperationRejected,
+                        '-1005': PermissionDenied,
+                        '-1006': OperationFailed,
+                        '-1007': RequestTimeout,
+                        '-1010': OperationFailed,
+                        '-1011': PermissionDenied,
+                        '-1013': OperationFailed,
+                        '-1014': InvalidOrder,
+                        '-1015': RateLimitExceeded,
+                        '-1016': BadRequest,
+                        '-1020': BadRequest,
+                        '-1021': InvalidNonce,
+                        '-1022': AuthenticationError,
+                        '-1023': BadRequest,
+                        '-1100': BadRequest,
+                        '-1101': BadRequest,
+                        '-1102': BadRequest,
+                        '-1103': BadRequest,
+                        '-1104': BadRequest,
+                        '-1105': BadRequest,
+                        '-1106': BadRequest,
+                        '-1108': BadSymbol,
+                        '-1109': BadRequest,
+                        '-1110': BadSymbol,
+                        '-1111': BadRequest,
+                        '-1112': OperationFailed,
+                        '-1113': BadRequest,
+                        '-1114': BadRequest,
+                        '-1115': BadRequest,
+                        '-1116': BadRequest,
+                        '-1117': BadRequest,
+                        '-1118': BadRequest,
+                        '-1119': BadRequest,
+                        '-1120': BadRequest,
+                        '-1121': BadSymbol,
+                        '-1125': AuthenticationError,
+                        '-1127': BadRequest,
+                        '-1128': BadRequest,
+                        '-1130': BadRequest,
+                        '-1136': BadRequest,
+                        '-2010': InvalidOrder,
+                        '-2011': OrderNotFound,
+                        '-2013': OrderNotFound,
+                        '-2014': AuthenticationError,
+                        '-2015': AuthenticationError,
+                        '-2016': OperationRejected,
+                        '-2018': InsufficientFunds,
+                        '-2019': InsufficientFunds,
+                        '-2020': OrderNotFillable,
+                        '-2021': OrderImmediatelyFillable,
+                        '-2022': InvalidOrder,
+                        '-2023': OperationFailed,
+                        '-2024': OperationRejected,
+                        '-2025': OperationRejected,
+                        '-2026': InvalidOrder,
+                        '-2027': OperationRejected,
+                        '-2028': OperationRejected,
+                        '-4000': InvalidOrder,
+                        '-4001': BadRequest,
+                        '-4002': BadRequest,
+                        '-4003': BadRequest,
+                        '-4004': BadRequest,
+                        '-4005': BadRequest,
+                        '-4006': BadRequest,
+                        '-4007': BadRequest,
+                        '-4008': BadRequest,
+                        '-4009': BadRequest,
+                        '-4010': BadRequest,
+                        '-4011': BadRequest,
+                        '-4012': BadRequest,
+                        '-4013': BadRequest,
+                        '-4014': BadRequest,
+                        '-4015': BadRequest,
+                        '-4016': BadRequest,
+                        '-4017': BadRequest,
+                        '-4018': BadRequest,
+                        '-4019': OperationRejected,
+                        '-4020': BadRequest,
+                        '-4021': BadRequest,
+                        '-4022': BadRequest,
+                        '-4023': BadRequest,
+                        '-4024': BadRequest,
+                        '-4025': BadRequest,
+                        '-4026': BadRequest,
+                        '-4027': BadRequest,
+                        '-4028': BadRequest,
+                        '-4029': BadRequest,
+                        '-4030': BadRequest,
+                        '-4031': BadRequest,
+                        '-4032': OperationRejected,
+                        '-4033': BadRequest,
+                        '-4044': BadRequest,
+                        '-4045': OperationRejected,
+                        '-4046': OperationRejected,
+                        '-4047': OperationRejected,
+                        '-4048': OperationRejected,
+                        '-4049': BadRequest,
+                        '-4050': InsufficientFunds,
+                        '-4051': InsufficientFunds,
+                        '-4052': OperationRejected,
+                        '-4053': BadRequest,
+                        '-4054': OperationRejected,
+                        '-4055': BadRequest,
+                        '-4056': AuthenticationError,
+                        '-4057': AuthenticationError,
+                        '-4058': BadRequest,
+                        '-4059': OperationRejected,
+                        '-4060': BadRequest,
+                        '-4061': BadRequest,
+                        '-4062': BadRequest,
+                        '-4063': BadRequest,
+                        '-4064': BadRequest,
+                        '-4065': BadRequest,
+                        '-4066': BadRequest,
+                        '-4067': OperationRejected,
+                        '-4068': OperationRejected,
+                        '-4069': BadRequest,
+                        '-4070': BadRequest,
+                        '-4071': BadRequest,
+                        '-4072': OperationRejected,
+                        '-4073': BadRequest,
+                        '-4074': BadRequest,
+                        '-4075': BadRequest,
+                        '-4076': OperationRejected,
+                        '-4077': OperationRejected,
+                        '-4078': OperationFailed,
+                        '-4079': BadRequest,
+                        '-4080': PermissionDenied,
+                        '-4081': BadRequest,
+                        '-4082': BadRequest,
+                        '-4083': OperationFailed,
+                        '-4084': BadRequest,
+                        '-4085': BadRequest,
+                        '-4086': BadRequest,
+                        '-4087': PermissionDenied,
+                        '-4088': PermissionDenied,
+                        '-4104': BadRequest,
+                        '-4114': BadRequest,
+                        '-4115': BadRequest,
+                        '-4118': OperationRejected,
+                        '-4131': OperationRejected,
+                        '-4135': BadRequest,
+                        '-4137': BadRequest,
+                        '-4138': BadRequest,
+                        '-4139': BadRequest,
+                        '-4140': BadRequest,
+                        '-4141': BadRequest,
+                        '-4142': OrderImmediatelyFillable,
+                        '-4144': BadSymbol,
+                        '-4161': OperationRejected,
+                        '-4164': OperationRejected,
+                        '-4165': BadRequest,
+                        '-4183': BadRequest,
+                        '-4184': BadRequest,
+                        '-5021': OrderNotFillable,
+                        '-5022': OrderNotFillable, // Due to the order could not be executed as maker, the Post Only order will be rejected.
+                    },
+                },
                 'exact': {
                     'System is under maintenance.': OnMaintenance,
-                    'System abnormality': ExchangeError,
+                    'System abnormality': OperationFailed,
                     'You are not authorized to execute this request.': PermissionDenied,
                     'API key does not exist': AuthenticationError,
                     'Order would trigger immediately.': OrderImmediatelyFillable,
                     'Stop price would trigger immediately.': OrderImmediatelyFillable,
                     'Order would immediately match and take.': OrderImmediatelyFillable,
                     'Account has insufficient balance for requested action.': InsufficientFunds,
-                    'Rest API trading is not enabled.': ExchangeNotAvailable,
-                    'This account may not place or cancel orders.': ExchangeNotAvailable,
+                    'Rest API trading is not enabled.': PermissionDenied,
+                    'This account may not place or cancel orders.': PermissionDenied,
                     "You don't have permission.": PermissionDenied,
-                    'Market is closed.': ExchangeNotAvailable,
-                    'Too many requests. Please try again later.': DDoSProtection,
+                    'Market is closed.': OperationRejected,
+                    'Too many requests. Please try again later.': RateLimitExceeded,
                     'This action is disabled on this account.': AccountSuspended,
                     'Limit orders require GTC for this phase.': BadRequest,
                     'This order type is not possible in this trading phase.': BadRequest,
-                    'This type of sub-account exceeds the maximum number limit': BadRequest,
+                    'This type of sub-account exceeds the maximum number limit': OperationRejected,
                     'This symbol is restricted for this account.': PermissionDenied,
-                    'This symbol is not permitted for this account.': PermissionDenied,
-                    '-1000': ExchangeNotAvailable,
-                    '-1001': ExchangeNotAvailable,
-                    '-1002': AuthenticationError,
-                    '-1003': RateLimitExceeded,
-                    '-1004': DDoSProtection,
-                    '-1005': PermissionDenied,
-                    '-1006': BadResponse,
-                    '-1007': RequestTimeout,
-                    '-1010': BadResponse,
-                    '-1011': PermissionDenied,
-                    '-1013': InvalidOrder,
-                    '-1014': InvalidOrder,
-                    '-1015': RateLimitExceeded,
-                    '-1016': ExchangeNotAvailable,
-                    '-1020': BadRequest,
-                    '-1021': InvalidNonce,
-                    '-1022': AuthenticationError,
-                    '-1023': BadRequest,
-                    '-1099': AuthenticationError,
-                    '-1100': BadRequest,
-                    '-1101': BadRequest,
-                    '-1102': BadRequest,
-                    '-1103': BadRequest,
-                    '-1104': BadRequest,
-                    '-1105': BadRequest,
-                    '-1106': BadRequest,
-                    '-1108': BadRequest,
-                    '-1109': AuthenticationError,
-                    '-1110': BadRequest,
-                    '-1111': BadRequest,
-                    '-1112': InvalidOrder,
-                    '-1113': BadRequest,
-                    '-1114': BadRequest,
-                    '-1115': BadRequest,
-                    '-1116': BadRequest,
-                    '-1117': BadRequest,
-                    '-1118': BadRequest,
-                    '-1119': BadRequest,
-                    '-1120': BadRequest,
-                    '-1121': BadSymbol,
-                    '-1125': AuthenticationError,
-                    '-1127': BadRequest,
-                    '-1128': BadRequest,
-                    '-1130': BadRequest,
-                    '-1131': BadRequest,
-                    '-1135': BadRequest,
-                    '-1136': BadRequest,
-                    '-2008': AuthenticationError,
-                    '-2010': ExchangeError,
-                    '-2011': OrderNotFound,
-                    '-2013': OrderNotFound,
-                    '-2014': AuthenticationError,
-                    '-2015': AuthenticationError,
-                    '-2016': BadRequest,
-                    '-2018': InsufficientFunds,
-                    '-2019': InsufficientFunds,
-                    '-2020': OrderNotFillable,
-                    '-2021': OrderImmediatelyFillable,
-                    '-2022': InvalidOrder,
-                    '-2023': InsufficientFunds,
-                    '-2024': InsufficientFunds,
-                    '-2025': InvalidOrder,
-                    '-2026': InvalidOrder,
-                    '-2027': InvalidOrder,
-                    '-2028': InsufficientFunds,
-                    '-3000': ExchangeError,
-                    '-3001': AuthenticationError,
-                    '-3002': BadSymbol,
-                    '-3003': BadRequest,
-                    '-3004': ExchangeError,
-                    '-3005': InsufficientFunds,
-                    '-3006': InsufficientFunds,
-                    '-3007': ExchangeError,
-                    '-3008': InsufficientFunds,
-                    '-3009': BadRequest,
-                    '-3010': BadRequest,
-                    '-3011': BadRequest,
-                    '-3012': InsufficientFunds,
-                    '-3013': BadRequest,
-                    '-3014': AccountSuspended,
-                    '-3015': BadRequest,
-                    '-3016': BadRequest,
-                    '-3017': ExchangeError,
-                    '-3018': AccountSuspended,
-                    '-3019': AccountSuspended,
-                    '-3020': InsufficientFunds,
-                    '-3021': BadRequest,
-                    '-3022': AccountSuspended,
-                    '-3023': BadRequest,
-                    '-3024': ExchangeError,
-                    '-3025': BadRequest,
-                    '-3026': BadRequest,
-                    '-3027': BadSymbol,
-                    '-3028': BadSymbol,
-                    '-3029': ExchangeError,
-                    '-3036': AccountSuspended,
-                    '-3037': ExchangeError,
-                    '-3038': BadRequest,
-                    '-3041': InsufficientFunds,
-                    '-3042': BadRequest,
-                    '-3043': BadRequest,
-                    '-3044': DDoSProtection,
-                    '-3045': ExchangeError,
-                    '-3999': ExchangeError,
-                    '-4001': BadRequest,
-                    '-4002': BadRequest,
-                    '-4003': BadRequest,
-                    '-4004': AuthenticationError,
-                    '-4005': RateLimitExceeded,
-                    '-4006': BadRequest,
-                    '-4007': BadRequest,
-                    '-4008': BadRequest,
-                    '-4010': BadRequest,
-                    '-4011': BadRequest,
-                    '-4012': BadRequest,
-                    '-4013': AuthenticationError,
-                    '-4014': PermissionDenied,
-                    '-4015': ExchangeError,
-                    '-4016': PermissionDenied,
-                    '-4017': PermissionDenied,
-                    '-4018': BadSymbol,
-                    '-4019': BadSymbol,
-                    '-4021': BadRequest,
-                    '-4022': BadRequest,
-                    '-4023': ExchangeError,
-                    '-4024': InsufficientFunds,
-                    '-4025': InsufficientFunds,
-                    '-4026': InsufficientFunds,
-                    '-4027': ExchangeError,
-                    '-4028': BadRequest,
-                    '-4029': BadRequest,
-                    '-4030': ExchangeError,
-                    '-4031': ExchangeError,
-                    '-4032': ExchangeError,
-                    '-4033': BadRequest,
-                    '-4034': ExchangeError,
-                    '-4035': PermissionDenied,
-                    '-4036': BadRequest,
-                    '-4037': ExchangeError,
-                    '-4038': ExchangeError,
-                    '-4039': BadRequest,
-                    '-4040': BadRequest,
-                    '-4041': ExchangeError,
-                    '-4042': ExchangeError,
-                    '-4043': BadRequest,
-                    '-4044': BadRequest,
-                    '-4045': ExchangeError,
-                    '-4046': AuthenticationError,
-                    '-4047': BadRequest,
-                    '-4054': BadRequest,
-                    '-5001': BadRequest,
-                    '-5002': InsufficientFunds,
-                    '-5003': InsufficientFunds,
-                    '-5004': BadRequest,
-                    '-5005': InsufficientFunds,
-                    '-5006': BadRequest,
-                    '-5007': BadRequest,
-                    '-5008': InsufficientFunds,
-                    '-5009': BadRequest,
-                    '-5010': ExchangeError,
-                    '-5011': BadRequest,
-                    '-5012': ExchangeError,
-                    '-5013': InsufficientFunds,
-                    '-5021': BadRequest,
-                    '-6001': BadRequest,
-                    '-6003': BadRequest,
-                    '-6004': ExchangeError,
-                    '-6005': InvalidOrder,
-                    '-6006': BadRequest,
-                    '-6007': BadRequest,
-                    '-6008': BadRequest,
-                    '-6009': RateLimitExceeded,
-                    '-6011': BadRequest,
-                    '-6012': InsufficientFunds,
-                    '-6013': ExchangeError,
-                    '-6014': BadRequest,
-                    '-6015': BadRequest,
-                    '-6016': BadRequest,
-                    '-6017': BadRequest,
-                    '-6018': BadRequest,
-                    '-6019': AuthenticationError,
-                    '-6020': BadRequest,
-                    '-7001': BadRequest,
-                    '-7002': BadRequest,
-                    '-9000': InsufficientFunds,
-                    '-10017': BadRequest,
-                    '-11008': InsufficientFunds,
-                    '-12014': RateLimitExceeded,
-                    '-13000': BadRequest,
-                    '-13001': BadRequest,
-                    '-13002': BadRequest,
-                    '-13003': BadRequest,
-                    '-13004': BadRequest,
-                    '-13005': BadRequest,
-                    '-13006': InvalidOrder,
-                    '-13007': AuthenticationError,
-                    '-21001': BadRequest,
-                    '-21002': BadRequest,
-                    '-21003': BadRequest,
-                    '100001003': AuthenticationError,
-                    '200003903': AuthenticationError, // {"code":200003903,"msg":"Your identity verification has been rejected. Please complete identity verification again."}
+                    'This symbol is not permitted for this account.': PermissionDenied, // {"code":-2010,"msg":"This symbol is not permitted for this account."}
                 },
                 'broad': {
                     'has no operation privilege': PermissionDenied,
-                    'MAX_POSITION': InvalidOrder, // {"code":-2010,"msg":"Filter failure: MAX_POSITION"}
+                    'MAX_POSITION': BadRequest, // {"code":-2010,"msg":"Filter failure: MAX_POSITION"}
                 },
             },
         });
@@ -2341,7 +3026,7 @@ export default class binance extends Exchange {
                 }
             }
         }
-        const isMarginTradingAllowed = this.safeValue(market, 'isMarginTradingAllowed', false);
+        const isMarginTradingAllowed = this.safeBool(market, 'isMarginTradingAllowed', false);
         let unifiedType = undefined;
         if (spot) {
             unifiedType = 'spot';
@@ -2566,24 +3251,23 @@ export default class binance extends Exchange {
         let type = this.safeString(params, 'type', defaultType);
         let subType = undefined;
         [subType, params] = this.handleSubTypeAndParams('fetchBalance', undefined, params);
-        const [marginMode, query] = this.handleMarginModeAndParams('fetchBalance', params);
-        let method = 'privateGetAccount';
+        let marginMode = undefined;
+        let query = undefined;
+        [marginMode, query] = this.handleMarginModeAndParams('fetchBalance', params);
+        query = this.omit(query, 'type');
+        let response = undefined;
         const request = {};
         if (this.isLinear(type, subType)) {
-            const options = this.safeValue(this.options, type, {});
-            const fetchBalanceOptions = this.safeValue(options, 'fetchBalance', {});
-            method = this.safeString(fetchBalanceOptions, 'method', 'fapiPrivateV2GetAccount');
             type = 'linear';
+            response = await this.fapiPrivateV2GetAccount(this.extend(request, query));
         }
         else if (this.isInverse(type, subType)) {
-            const options = this.safeValue(this.options, type, {});
-            const fetchBalanceOptions = this.safeValue(options, 'fetchBalance', {});
-            method = this.safeString(fetchBalanceOptions, 'method', 'dapiPrivateGetAccount');
             type = 'inverse';
+            response = await this.dapiPrivateGetAccount(this.extend(request, query));
         }
         else if (marginMode === 'isolated') {
-            method = 'sapiGetMarginIsolatedAccount';
             const paramSymbols = this.safeValue(params, 'symbols');
+            query = this.omit(query, 'symbols');
             if (paramSymbols !== undefined) {
                 let symbols = '';
                 if (Array.isArray(paramSymbols)) {
@@ -2599,18 +3283,20 @@ export default class binance extends Exchange {
                 }
                 request['symbols'] = symbols;
             }
+            response = await this.sapiGetMarginIsolatedAccount(this.extend(request, query));
         }
         else if ((type === 'margin') || (marginMode === 'cross')) {
-            method = 'sapiGetMarginAccount';
+            response = await this.sapiGetMarginAccount(this.extend(request, query));
         }
         else if (type === 'savings') {
-            method = 'sapiGetLendingUnionAccount';
+            response = await this.sapiGetLendingUnionAccount(this.extend(request, query));
         }
         else if (type === 'funding') {
-            method = 'sapiPostAssetGetFundingAsset';
+            response = await this.sapiPostAssetGetFundingAsset(this.extend(request, query));
         }
-        const requestParams = this.omit(query, ['type', 'symbols']);
-        const response = await this[method](this.extend(request, requestParams));
+        else {
+            response = await this.privateGetAccount(this.extend(request, query));
+        }
         //
         // spot
         //
@@ -3079,7 +3765,7 @@ export default class binance extends Exchange {
             response = await this.dapiPublicGetTicker24hr(this.extend(request, params));
         }
         else {
-            const rolling = this.safeValue(params, 'rolling', false);
+            const rolling = this.safeBool(params, 'rolling', false);
             params = this.omit(params, 'rolling');
             if (rolling) {
                 response = await this.publicGetTicker(this.extend(request, params));
@@ -3125,7 +3811,12 @@ export default class binance extends Exchange {
             response = await this.dapiPublicGetTickerBookTicker(params);
         }
         else {
-            response = await this.publicGetTickerBookTicker(params);
+            const request = {};
+            if (symbols !== undefined) {
+                const marketIds = this.marketIds(symbols);
+                request['symbols'] = this.json(marketIds);
+            }
+            response = await this.publicGetTickerBookTicker(this.extend(request, params));
         }
         return this.parseTickers(response, symbols);
     }
@@ -3139,7 +3830,7 @@ export default class binance extends Exchange {
          * @see https://binance-docs.github.io/apidocs/delivery/en/#symbol-price-ticker     // future
          * @param {string[]|undefined} symbols unified symbols of the markets to fetch the last prices
          * @param {object} [params] extra parameters specific to the exchange API endpoint
-         * @returns {object} a dictionary of [ticker structures]{@link https://docs.ccxt.com/#/?id=ticker-structure}
+         * @returns {object} a dictionary of lastprices structures
          */
         await this.loadMarkets();
         symbols = this.marketSymbols(symbols);
@@ -3192,7 +3883,7 @@ export default class binance extends Exchange {
         }
         return this.parseLastPrices(response, symbols);
     }
-    parseLastPrice(info, market = undefined) {
+    parseLastPrice(entry, market = undefined) {
         //
         // spot
         //
@@ -3219,18 +3910,18 @@ export default class binance extends Exchange {
         //         "time": 1591257246176
         //     }
         //
-        const timestamp = this.safeInteger(info, 'time');
+        const timestamp = this.safeInteger(entry, 'time');
         const type = (timestamp === undefined) ? 'spot' : 'swap';
-        const marketId = this.safeString(info, 'symbol');
+        const marketId = this.safeString(entry, 'symbol');
         market = this.safeMarket(marketId, market, undefined, type);
-        const price = this.safeNumber(info, 'price');
+        const price = this.safeNumber(entry, 'price');
         return {
             'symbol': market['symbol'],
             'timestamp': timestamp,
             'datetime': this.iso8601(timestamp),
             'price': price,
             'side': undefined,
-            'info': info,
+            'info': entry,
         };
     }
     async fetchTickers(symbols = undefined, params = {}) {
@@ -3242,7 +3933,7 @@ export default class binance extends Exchange {
          * @see https://binance-docs.github.io/apidocs/futures/en/#24hr-ticker-price-change-statistics      // swap
          * @see https://binance-docs.github.io/apidocs/delivery/en/#24hr-ticker-price-change-statistics     // future
          * @see https://binance-docs.github.io/apidocs/voptions/en/#24hr-ticker-price-change-statistics     // option
-         * @param {string[]|undefined} symbols unified symbols of the markets to fetch the ticker for, all market tickers are returned if not assigned
+         * @param {string[]} [symbols] unified symbols of the markets to fetch the ticker for, all market tickers are returned if not assigned
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} a dictionary of [ticker structures]{@link https://docs.ccxt.com/#/?id=ticker-structure}
          */
@@ -3257,22 +3948,24 @@ export default class binance extends Exchange {
         [type, params] = this.handleMarketTypeAndParams('fetchTickers', market, params);
         let subType = undefined;
         [subType, params] = this.handleSubTypeAndParams('fetchTickers', market, params);
-        const query = this.omit(params, 'type');
-        let defaultMethod = undefined;
+        let response = undefined;
         if (type === 'option') {
-            defaultMethod = 'eapiPublicGetTicker';
+            response = await this.eapiPublicGetTicker(params);
         }
         else if (this.isLinear(type, subType)) {
-            defaultMethod = 'fapiPublicGetTicker24hr';
+            response = await this.fapiPublicGetTicker24hr(params);
         }
         else if (this.isInverse(type, subType)) {
-            defaultMethod = 'dapiPublicGetTicker24hr';
+            response = await this.dapiPublicGetTicker24hr(params);
         }
         else {
-            defaultMethod = 'publicGetTicker24hr';
+            const request = {};
+            if (symbols !== undefined) {
+                const marketIds = this.marketIds(symbols);
+                request['symbols'] = this.json(marketIds);
+            }
+            response = await this.publicGetTicker24hr(this.extend(request, params));
         }
-        const method = this.safeString(this.options, 'fetchTickersMethod', defaultMethod);
-        const response = await this[method](query);
         return this.parseTickers(response, symbols);
     }
     parseOHLCV(ohlcv, market = undefined) {
@@ -3404,33 +4097,35 @@ export default class binance extends Exchange {
         if (until !== undefined) {
             request['endTime'] = until;
         }
-        let method = 'publicGetKlines';
+        let response = undefined;
         if (market['option']) {
-            method = 'eapiPublicGetKlines';
+            response = await this.eapiPublicGetKlines(this.extend(request, params));
         }
         else if (price === 'mark') {
             if (market['inverse']) {
-                method = 'dapiPublicGetMarkPriceKlines';
+                response = await this.dapiPublicGetMarkPriceKlines(this.extend(request, params));
             }
             else {
-                method = 'fapiPublicGetMarkPriceKlines';
+                response = await this.fapiPublicGetMarkPriceKlines(this.extend(request, params));
             }
         }
         else if (price === 'index') {
             if (market['inverse']) {
-                method = 'dapiPublicGetIndexPriceKlines';
+                response = await this.dapiPublicGetIndexPriceKlines(this.extend(request, params));
             }
             else {
-                method = 'fapiPublicGetIndexPriceKlines';
+                response = await this.fapiPublicGetIndexPriceKlines(this.extend(request, params));
             }
         }
         else if (market['linear']) {
-            method = 'fapiPublicGetKlines';
+            response = await this.fapiPublicGetKlines(this.extend(request, params));
         }
         else if (market['inverse']) {
-            method = 'dapiPublicGetKlines';
+            response = await this.dapiPublicGetKlines(this.extend(request, params));
         }
-        const response = await this[method](this.extend(request, params));
+        else {
+            response = await this.publicGetKlines(this.extend(request, params));
+        }
         //
         //     [
         //         [1591478520000,"0.02501300","0.02501800","0.02500000","0.02500000","22.19000000",1591478579999,"0.55490906",40,"10.92900000","0.27336462","0"],
@@ -3720,22 +4415,6 @@ export default class binance extends Exchange {
             // 'endTime': 789,   // Timestamp in ms to get aggregate trades until INCLUSIVE.
             // 'limit': 500,     // default = 500, maximum = 1000
         };
-        let method = this.safeString(this.options, 'fetchTradesMethod');
-        method = this.safeString2(params, 'fetchTradesMethod', 'method', method);
-        if (method === undefined) {
-            if (market['option']) {
-                method = 'eapiPublicGetTrades';
-            }
-            else if (market['linear']) {
-                method = 'fapiPublicGetAggTrades';
-            }
-            else if (market['inverse']) {
-                method = 'dapiPublicGetAggTrades';
-            }
-            else {
-                method = 'publicGetAggTrades';
-            }
-        }
         if (!market['option']) {
             if (since !== undefined) {
                 request['startTime'] = since;
@@ -3752,7 +4431,22 @@ export default class binance extends Exchange {
             const isFutureOrSwap = (market['swap'] || market['future']);
             request['limit'] = isFutureOrSwap ? Math.min(limit, 1000) : limit; // default = 500, maximum = 1000
         }
+        let method = this.safeString(this.options, 'fetchTradesMethod');
+        method = this.safeString2(params, 'fetchTradesMethod', 'method', method);
         params = this.omit(params, ['until', 'fetchTradesMethod']);
+        let response = undefined;
+        if (market['option'] || method === 'eapiPublicGetTrades') {
+            response = await this.eapiPublicGetTrades(this.extend(request, params));
+        }
+        else if (market['linear'] || method === 'fapiPublicGetAggTrades') {
+            response = await this.fapiPublicGetAggTrades(this.extend(request, params));
+        }
+        else if (market['inverse'] || method === 'dapiPublicGetAggTrades') {
+            response = await this.dapiPublicGetAggTrades(this.extend(request, params));
+        }
+        else {
+            response = await this.publicGetAggTrades(this.extend(request, params));
+        }
         //
         // Caveats:
         // - default limit (500) applies only if no other parameters set, trades up
@@ -3762,7 +4456,6 @@ export default class binance extends Exchange {
         // - "tradeId" accepted and returned by this method is "aggregate" trade id
         //   which is different from actual trade id
         // - setting both fromId and time window results in error
-        const response = await this[method](this.extend(request, params));
         //
         // aggregate trades
         //
@@ -3826,6 +4519,7 @@ export default class binance extends Exchange {
         /**
          * @method
          * @name binance#editSpotOrder
+         * @ignore
          * @description edit a trade order
          * @see https://binance-docs.github.io/apidocs/spot/en/#cancel-an-existing-order-and-send-a-new-order-trade
          * @param {string} id cancel order id
@@ -4360,6 +5054,15 @@ export default class binance extends Exchange {
         }
         const stopPriceString = this.safeString(order, 'stopPrice');
         const stopPrice = this.parseNumber(this.omitZero(stopPriceString));
+        const feeCost = this.safeNumber(order, 'fee');
+        let fee = undefined;
+        if (feeCost !== undefined) {
+            fee = {
+                'currency': this.safeString(order, 'quoteAsset'),
+                'cost': feeCost,
+                'rate': undefined,
+            };
+        }
         return this.safeOrder({
             'info': order,
             'id': id,
@@ -4382,11 +5085,7 @@ export default class binance extends Exchange {
             'filled': filled,
             'remaining': undefined,
             'status': status,
-            'fee': {
-                'currency': this.safeString(order, 'quoteAsset'),
-                'cost': this.safeNumber(order, 'fee'),
-                'rate': undefined,
-            },
+            'fee': fee,
             'trades': fills,
         }, market);
     }
@@ -4396,7 +5095,7 @@ export default class binance extends Exchange {
          * @name binance#createOrders
          * @description *contract only* create a list of trade orders
          * @see https://binance-docs.github.io/apidocs/futures/en/#place-multiple-orders-trade
-         * @param {array} orders list of orders to create, each object should contain the parameters required by createOrder, namely symbol, type, side, amount, price and params
+         * @param {Array} orders list of orders to create, each object should contain the parameters required by createOrder, namely symbol, type, side, amount, price and params
          * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
         await this.loadMarkets();
@@ -4490,6 +5189,8 @@ export default class binance extends Exchange {
          * @param {string} [params.marginMode] 'cross' or 'isolated', for spot margin trading
          * @param {boolean} [params.sor] *spot only* whether to use SOR (Smart Order Routing) or not, default is false
          * @param {boolean} [params.test] *spot only* whether to use the test endpoint or not, default is false
+         * @param {float} [params.trailingPercent] the percent to trail away from the current market price
+         * @param {float} [params.trailingTriggerPrice] the price to trigger a trailing order, default uses the price argument
          * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
         await this.loadMarkets();
@@ -4517,7 +5218,7 @@ export default class binance extends Exchange {
         }
         // support for testing orders
         if (market['spot'] || marketType === 'margin') {
-            const test = this.safeValue(query, 'test', false);
+            const test = this.safeBool(query, 'test', false);
             if (test) {
                 method += 'Test';
             }
@@ -4538,6 +5239,8 @@ export default class binance extends Exchange {
          * @param {float|undefined} price the price at which the order is to be fullfilled, in units of the quote currency, ignored in market orders
          * @param {object} params extra parameters specific to the exchange API endpoint
          * @param {string|undefined} params.marginMode 'cross' or 'isolated', for spot margin trading
+         * @param {float} [params.trailingPercent] the percent to trail away from the current market price
+         * @param {float} [params.trailingTriggerPrice] the price to trigger a trailing order, default uses the price argument
          * @returns {object} request to be sent to the exchange
          */
         const market = this.market(symbol);
@@ -4551,9 +5254,12 @@ export default class binance extends Exchange {
         const stopLossPrice = this.safeValue(params, 'stopLossPrice', triggerPrice); // fallback to stopLoss
         const takeProfitPrice = this.safeValue(params, 'takeProfitPrice');
         const trailingDelta = this.safeValue(params, 'trailingDelta');
+        const trailingTriggerPrice = this.safeString2(params, 'trailingTriggerPrice', 'activationPrice', price);
+        const trailingPercent = this.safeString2(params, 'trailingPercent', 'callbackRate');
+        const isTrailingPercentOrder = trailingPercent !== undefined;
         const isStopLoss = stopLossPrice !== undefined || trailingDelta !== undefined;
         const isTakeProfit = takeProfitPrice !== undefined;
-        params = this.omit(params, ['type', 'newClientOrderId', 'clientOrderId', 'postOnly', 'stopLossPrice', 'takeProfitPrice', 'stopPrice', 'triggerPrice']);
+        params = this.omit(params, ['type', 'newClientOrderId', 'clientOrderId', 'postOnly', 'stopLossPrice', 'takeProfitPrice', 'stopPrice', 'triggerPrice', 'trailingTriggerPrice', 'trailingPercent']);
         const [marginMode, query] = this.handleMarginModeAndParams('createOrder', params);
         const request = {
             'symbol': market['id'],
@@ -4574,7 +5280,14 @@ export default class binance extends Exchange {
         }
         let uppercaseType = type.toUpperCase();
         let stopPrice = undefined;
-        if (isStopLoss) {
+        if (isTrailingPercentOrder) {
+            uppercaseType = 'TRAILING_STOP_MARKET';
+            request['callbackRate'] = trailingPercent;
+            if (trailingTriggerPrice !== undefined) {
+                request['activationPrice'] = this.priceToPrecision(symbol, trailingTriggerPrice);
+            }
+        }
+        else if (isStopLoss) {
             stopPrice = stopLossPrice;
             if (isMarketOrder) {
                 // spot STOP_LOSS market orders are not a valid order type
@@ -4718,9 +5431,8 @@ export default class binance extends Exchange {
         }
         else if (uppercaseType === 'TRAILING_STOP_MARKET') {
             quantityIsRequired = true;
-            const callbackRate = this.safeNumber(query, 'callbackRate');
-            if (callbackRate === undefined) {
-                throw new InvalidOrder(this.id + ' createOrder() requires a callbackRate extra param for a ' + type + ' order');
+            if (trailingPercent === undefined) {
+                throw new InvalidOrder(this.id + ' createOrder() requires a trailingPercent param for a ' + type + ' order');
             }
         }
         if (quantityIsRequired) {
@@ -4761,6 +5473,64 @@ export default class binance extends Exchange {
         const requestParams = this.omit(params, ['quoteOrderQty', 'cost', 'stopPrice', 'test', 'type', 'newClientOrderId', 'clientOrderId', 'postOnly']);
         return this.extend(request, requestParams);
     }
+    async createMarketOrderWithCost(symbol, side, cost, params = {}) {
+        /**
+         * @method
+         * @name binance#createMarketOrderWithCost
+         * @description create a market order by providing the symbol, side and cost
+         * @see https://binance-docs.github.io/apidocs/spot/en/#new-order-trade
+         * @param {string} symbol unified symbol of the market to create an order in
+         * @param {string} side 'buy' or 'sell'
+         * @param {float} cost how much you want to trade in units of the quote currency
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        await this.loadMarkets();
+        const market = this.market(symbol);
+        if (!market['spot']) {
+            throw new NotSupported(this.id + ' createMarketOrderWithCost() supports spot orders only');
+        }
+        params['quoteOrderQty'] = cost;
+        return await this.createOrder(symbol, 'market', side, cost, undefined, params);
+    }
+    async createMarketBuyOrderWithCost(symbol, cost, params = {}) {
+        /**
+         * @method
+         * @name binance#createMarketBuyOrderWithCost
+         * @description create a market buy order by providing the symbol and cost
+         * @see https://binance-docs.github.io/apidocs/spot/en/#new-order-trade
+         * @param {string} symbol unified symbol of the market to create an order in
+         * @param {float} cost how much you want to trade in units of the quote currency
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        await this.loadMarkets();
+        const market = this.market(symbol);
+        if (!market['spot']) {
+            throw new NotSupported(this.id + ' createMarketBuyOrderWithCost() supports spot orders only');
+        }
+        params['quoteOrderQty'] = cost;
+        return await this.createOrder(symbol, 'market', 'buy', cost, undefined, params);
+    }
+    async createMarketSellOrderWithCost(symbol, cost, params = {}) {
+        /**
+         * @method
+         * @name binance#createMarketSellOrderWithCost
+         * @description create a market sell order by providing the symbol and cost
+         * @see https://binance-docs.github.io/apidocs/spot/en/#new-order-trade
+         * @param {string} symbol unified symbol of the market to create an order in
+         * @param {float} cost how much you want to trade in units of the quote currency
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        await this.loadMarkets();
+        const market = this.market(symbol);
+        if (!market['spot']) {
+            throw new NotSupported(this.id + ' createMarketSellOrderWithCost() supports spot orders only');
+        }
+        params['quoteOrderQty'] = cost;
+        return await this.createOrder(symbol, 'market', 'sell', cost, undefined, params);
+    }
     async fetchOrder(id, symbol = undefined, params = {}) {
         /**
          * @method
@@ -4787,22 +5557,6 @@ export default class binance extends Exchange {
         const request = {
             'symbol': market['id'],
         };
-        let method = 'privateGetOrder';
-        if (market['option']) {
-            method = 'eapiPrivateGetOrder';
-        }
-        else if (market['linear']) {
-            method = 'fapiPrivateGetOrder';
-        }
-        else if (market['inverse']) {
-            method = 'dapiPrivateGetOrder';
-        }
-        else if (type === 'margin' || marginMode !== undefined) {
-            method = 'sapiGetMarginOrder';
-            if (marginMode === 'isolated') {
-                request['isIsolated'] = true;
-            }
-        }
         const clientOrderId = this.safeValue2(params, 'origClientOrderId', 'clientOrderId');
         if (clientOrderId !== undefined) {
             if (market['option']) {
@@ -4816,7 +5570,25 @@ export default class binance extends Exchange {
             request['orderId'] = id;
         }
         const requestParams = this.omit(query, ['type', 'clientOrderId', 'origClientOrderId']);
-        const response = await this[method](this.extend(request, requestParams));
+        let response = undefined;
+        if (market['option']) {
+            response = await this.eapiPrivateGetOrder(this.extend(request, requestParams));
+        }
+        else if (market['linear']) {
+            response = await this.fapiPrivateGetOrder(this.extend(request, requestParams));
+        }
+        else if (market['inverse']) {
+            response = await this.dapiPrivateGetOrder(this.extend(request, requestParams));
+        }
+        else if (type === 'margin' || marginMode !== undefined) {
+            if (marginMode === 'isolated') {
+                request['isIsolated'] = true;
+            }
+            response = await this.sapiGetMarginOrder(this.extend(request, requestParams));
+        }
+        else {
+            response = await this.privateGetOrder(this.extend(request, requestParams));
+        }
         return this.parseOrder(response, market);
     }
     async fetchOrders(symbol = undefined, since = undefined, limit = undefined, params = {}) {
@@ -4854,22 +5626,6 @@ export default class binance extends Exchange {
         const request = {
             'symbol': market['id'],
         };
-        let method = 'privateGetAllOrders';
-        if (market['option']) {
-            method = 'eapiPrivateGetHistoryOrders';
-        }
-        else if (market['linear']) {
-            method = 'fapiPrivateGetAllOrders';
-        }
-        else if (market['inverse']) {
-            method = 'dapiPrivateGetAllOrders';
-        }
-        else if (type === 'margin' || marginMode !== undefined) {
-            method = 'sapiGetMarginAllOrders';
-            if (marginMode === 'isolated') {
-                request['isIsolated'] = true;
-            }
-        }
         const until = this.safeInteger(params, 'until');
         if (until !== undefined) {
             params = this.omit(params, 'until');
@@ -4881,7 +5637,25 @@ export default class binance extends Exchange {
         if (limit !== undefined) {
             request['limit'] = limit;
         }
-        const response = await this[method](this.extend(request, query));
+        let response = undefined;
+        if (market['option']) {
+            response = await this.eapiPrivateGetHistoryOrders(this.extend(request, query));
+        }
+        else if (market['linear']) {
+            response = await this.fapiPrivateGetAllOrders(this.extend(request, query));
+        }
+        else if (market['inverse']) {
+            response = await this.dapiPrivateGetAllOrders(this.extend(request, query));
+        }
+        else if (type === 'margin' || marginMode !== undefined) {
+            if (marginMode === 'isolated') {
+                request['isIsolated'] = true;
+            }
+            response = await this.sapiGetMarginAllOrders(this.extend(request, query));
+        }
+        else {
+            response = await this.privateGetAllOrders(this.extend(request, query));
+        }
         //
         //  spot
         //
@@ -5006,32 +5780,34 @@ export default class binance extends Exchange {
         let subType = undefined;
         [subType, query] = this.handleSubTypeAndParams('fetchOpenOrders', market, query);
         const requestParams = this.omit(query, 'type');
-        let method = 'privateGetOpenOrders';
+        let response = undefined;
         if (type === 'option') {
-            method = 'eapiPrivateGetOpenOrders';
             if (since !== undefined) {
                 request['startTime'] = since;
             }
             if (limit !== undefined) {
                 request['limit'] = limit;
             }
+            response = await this.eapiPrivateGetOpenOrders(this.extend(request, requestParams));
         }
         else if (this.isLinear(type, subType)) {
-            method = 'fapiPrivateGetOpenOrders';
+            response = await this.fapiPrivateGetOpenOrders(this.extend(request, requestParams));
         }
         else if (this.isInverse(type, subType)) {
-            method = 'dapiPrivateGetOpenOrders';
+            response = await this.dapiPrivateGetOpenOrders(this.extend(request, requestParams));
         }
         else if (type === 'margin' || marginMode !== undefined) {
-            method = 'sapiGetMarginOpenOrders';
             if (marginMode === 'isolated') {
                 request['isIsolated'] = true;
                 if (symbol === undefined) {
                     throw new ArgumentsRequired(this.id + ' fetchOpenOrders() requires a symbol argument for isolated markets');
                 }
             }
+            response = await this.sapiGetMarginOpenOrders(this.extend(request, requestParams));
         }
-        const response = await this[method](this.extend(request, requestParams));
+        else {
+            response = await this.privateGetOpenOrders(this.extend(request, requestParams));
+        }
         return this.parseOrders(response, market, since, limit);
     }
     async fetchClosedOrders(symbol = undefined, since = undefined, limit = undefined, params = {}) {
@@ -5080,7 +5856,7 @@ export default class binance extends Exchange {
         params = this.omit(params, 'type');
         const orders = await this.fetchOrders(symbol, since, undefined, params);
         const filteredOrders = this.filterBy(orders, 'status', 'canceled');
-        return this.filterByLimit(filteredOrders, limit);
+        return this.filterBySinceLimit(filteredOrders, since, limit);
     }
     async cancelOrder(id, symbol = undefined, params = {}) {
         /**
@@ -5122,24 +5898,26 @@ export default class binance extends Exchange {
         else {
             request['orderId'] = id;
         }
-        let method = 'privateDeleteOrder';
+        const requestParams = this.omit(query, ['type', 'origClientOrderId', 'clientOrderId']);
+        let response = undefined;
         if (market['option']) {
-            method = 'eapiPrivateDeleteOrder';
+            response = await this.eapiPrivateDeleteOrder(this.extend(request, requestParams));
         }
         else if (market['linear']) {
-            method = 'fapiPrivateDeleteOrder';
+            response = await this.fapiPrivateDeleteOrder(this.extend(request, requestParams));
         }
         else if (market['inverse']) {
-            method = 'dapiPrivateDeleteOrder';
+            response = await this.dapiPrivateDeleteOrder(this.extend(request, requestParams));
         }
         else if (type === 'margin' || marginMode !== undefined) {
-            method = 'sapiDeleteMarginOrder';
             if (marginMode === 'isolated') {
                 request['isIsolated'] = true;
             }
+            response = await this.sapiDeleteMarginOrder(this.extend(request, requestParams));
         }
-        const requestParams = this.omit(query, ['type', 'origClientOrderId', 'clientOrderId']);
-        const response = await this[method](this.extend(request, requestParams));
+        else {
+            response = await this.privateDeleteOrder(this.extend(request, requestParams));
+        }
         return this.parseOrder(response, market);
     }
     async cancelAllOrders(symbol = undefined, params = {}) {
@@ -5168,23 +5946,25 @@ export default class binance extends Exchange {
         const type = this.safeString(params, 'type', market['type']);
         params = this.omit(params, ['type']);
         const [marginMode, query] = this.handleMarginModeAndParams('cancelAllOrders', params);
-        let method = 'privateDeleteOpenOrders';
+        let response = undefined;
         if (market['option']) {
-            method = 'eapiPrivateDeleteAllOpenOrders';
+            response = await this.eapiPrivateDeleteAllOpenOrders(this.extend(request, query));
         }
         else if (market['linear']) {
-            method = 'fapiPrivateDeleteAllOpenOrders';
+            response = await this.fapiPrivateDeleteAllOpenOrders(this.extend(request, query));
         }
         else if (market['inverse']) {
-            method = 'dapiPrivateDeleteAllOpenOrders';
+            response = await this.dapiPrivateDeleteAllOpenOrders(this.extend(request, query));
         }
         else if ((type === 'margin') || (marginMode !== undefined)) {
-            method = 'sapiDeleteMarginOpenOrders';
             if (marginMode === 'isolated') {
                 request['isIsolated'] = true;
             }
+            response = await this.sapiDeleteMarginOpenOrders(this.extend(request, query));
         }
-        const response = await this[method](this.extend(request, query));
+        else {
+            response = await this.privateDeleteOpenOrders(this.extend(request, query));
+        }
         if (Array.isArray(response)) {
             return this.parseOrders(response, market);
         }
@@ -5321,37 +6101,12 @@ export default class binance extends Exchange {
         const request = {};
         let market = undefined;
         let type = undefined;
-        let method = undefined;
         let marginMode = undefined;
         if (symbol !== undefined) {
             market = this.market(symbol);
             request['symbol'] = market['id'];
         }
         [type, params] = this.handleMarketTypeAndParams('fetchMyTrades', market, params);
-        if (type === 'option') {
-            method = 'eapiPrivateGetUserTrades';
-        }
-        else {
-            if (symbol === undefined) {
-                throw new ArgumentsRequired(this.id + ' fetchMyTrades() requires a symbol argument');
-            }
-            [marginMode, params] = this.handleMarginModeAndParams('fetchMyTrades', params);
-            if (type === 'spot' || type === 'margin') {
-                method = 'privateGetMyTrades';
-                if ((type === 'margin') || (marginMode !== undefined)) {
-                    method = 'sapiGetMarginMyTrades';
-                    if (marginMode === 'isolated') {
-                        request['isIsolated'] = true;
-                    }
-                }
-            }
-            else if (market['linear']) {
-                method = 'fapiPrivateGetUserTrades';
-            }
-            else if (market['inverse']) {
-                method = 'dapiPrivateGetUserTrades';
-            }
-        }
         let endTime = this.safeInteger2(params, 'until', 'endTime');
         if (since !== undefined) {
             const startTime = since;
@@ -5379,7 +6134,33 @@ export default class binance extends Exchange {
             }
             request['limit'] = limit;
         }
-        const response = await this[method](this.extend(request, params));
+        let response = undefined;
+        if (type === 'option') {
+            response = await this.eapiPrivateGetUserTrades(this.extend(request, params));
+        }
+        else {
+            if (symbol === undefined) {
+                throw new ArgumentsRequired(this.id + ' fetchMyTrades() requires a symbol argument');
+            }
+            [marginMode, params] = this.handleMarginModeAndParams('fetchMyTrades', params);
+            if (type === 'spot' || type === 'margin') {
+                if ((type === 'margin') || (marginMode !== undefined)) {
+                    if (marginMode === 'isolated') {
+                        request['isIsolated'] = true;
+                    }
+                    response = await this.sapiGetMarginMyTrades(this.extend(request, params));
+                }
+                else {
+                    response = await this.privateGetMyTrades(this.extend(request, params));
+                }
+            }
+            else if (market['linear']) {
+                response = await this.fapiPrivateGetUserTrades(this.extend(request, params));
+            }
+            else if (market['inverse']) {
+                response = await this.dapiPrivateGetUserTrades(this.extend(request, params));
+            }
+        }
         //
         // spot trade
         //
@@ -5457,6 +6238,7 @@ export default class binance extends Exchange {
          * @param {int} [since] the earliest time in ms to fetch my dust trades for
          * @param {int} [limit] the maximum number of dust trades to retrieve
          * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @param {string} [params.type] 'spot' or 'margin', default spot
          * @returns {object[]} a list of [trade structures]{@link https://docs.ccxt.com/#/?id=trade-structure}
          */
         //
@@ -5470,6 +6252,11 @@ export default class binance extends Exchange {
         if (since !== undefined) {
             request['startTime'] = since;
             request['endTime'] = this.sum(since, 7776000000);
+        }
+        const accountType = this.safeStringUpper(params, 'type');
+        params = this.omit(params, 'type');
+        if (accountType !== undefined) {
+            request['accountType'] = accountType;
         }
         const response = await this.sapiGetAssetDribblet(this.extend(request, params));
         //     {
@@ -5613,7 +6400,7 @@ export default class binance extends Exchange {
         let response = undefined;
         const request = {};
         const legalMoney = this.safeValue(this.options, 'legalMoney', {});
-        const fiatOnly = this.safeValue(params, 'fiat', false);
+        const fiatOnly = this.safeBool(params, 'fiat', false);
         params = this.omit(params, 'fiatOnly');
         const until = this.safeInteger(params, 'until');
         params = this.omit(params, 'until');
@@ -5725,7 +6512,7 @@ export default class binance extends Exchange {
             return await this.fetchPaginatedCallDynamic('fetchWithdrawals', code, since, limit, params);
         }
         const legalMoney = this.safeValue(this.options, 'legalMoney', {});
-        const fiatOnly = this.safeValue(params, 'fiat', false);
+        const fiatOnly = this.safeBool(params, 'fiat', false);
         params = this.omit(params, 'fiatOnly');
         const request = {};
         const until = this.safeInteger(params, 'until');
@@ -6091,12 +6878,13 @@ export default class binance extends Exchange {
          * @name binance#transfer
          * @description transfer currency internally between wallets on the same account
          * @see https://binance-docs.github.io/apidocs/spot/en/#user-universal-transfer-user_data
-         * @see https://binance-docs.github.io/apidocs/spot/en/#isolated-margin-account-transfer-margin
          * @param {string} code unified currency code
          * @param {float} amount amount to transfer
          * @param {string} fromAccount account to transfer from
          * @param {string} toAccount account to transfer to
          * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @param {string} [params.type] exchange specific transfer type
+         * @param {string} [params.symbol] the unified symbol, required for isolated margin transfers
          * @returns {object} a [transfer structure]{@link https://docs.ccxt.com/#/?id=transfer-structure}
          */
         await this.loadMarkets();
@@ -6106,75 +6894,83 @@ export default class binance extends Exchange {
             'amount': this.currencyToPrecision(code, amount),
         };
         request['type'] = this.safeString(params, 'type');
-        let method = 'sapiPostAssetTransfer';
+        params = this.omit(params, 'type');
         if (request['type'] === undefined) {
             const symbol = this.safeString(params, 'symbol');
+            let market = undefined;
             if (symbol !== undefined) {
+                market = this.market(symbol);
                 params = this.omit(params, 'symbol');
             }
             let fromId = this.convertTypeToAccount(fromAccount).toUpperCase();
             let toId = this.convertTypeToAccount(toAccount).toUpperCase();
+            let isolatedSymbol = undefined;
+            if (market !== undefined) {
+                isolatedSymbol = market['id'];
+            }
             if (fromId === 'ISOLATED') {
                 if (symbol === undefined) {
                     throw new ArgumentsRequired(this.id + ' transfer () requires params["symbol"] when fromAccount is ' + fromAccount);
-                }
-                else {
-                    fromId = this.marketId(symbol);
                 }
             }
             if (toId === 'ISOLATED') {
                 if (symbol === undefined) {
                     throw new ArgumentsRequired(this.id + ' transfer () requires params["symbol"] when toAccount is ' + toAccount);
                 }
-                else {
-                    toId = this.marketId(symbol);
-                }
             }
             const accountsById = this.safeValue(this.options, 'accountsById', {});
             const fromIsolated = !(fromId in accountsById);
             const toIsolated = !(toId in accountsById);
+            if (fromIsolated && (market === undefined)) {
+                isolatedSymbol = fromId; // allow user provide symbol as the from/to account
+            }
+            if (toIsolated && (market === undefined)) {
+                isolatedSymbol = toId;
+            }
             if (fromIsolated || toIsolated) { // Isolated margin transfer
                 const fromFuture = fromId === 'UMFUTURE' || fromId === 'CMFUTURE';
                 const toFuture = toId === 'UMFUTURE' || toId === 'CMFUTURE';
                 const fromSpot = fromId === 'MAIN';
                 const toSpot = toId === 'MAIN';
                 const funding = fromId === 'FUNDING' || toId === 'FUNDING';
-                const mining = fromId === 'MINING' || toId === 'MINING';
                 const option = fromId === 'OPTION' || toId === 'OPTION';
-                const prohibitedWithIsolated = fromFuture || toFuture || mining || funding || option;
+                const prohibitedWithIsolated = fromFuture || toFuture || funding || option;
                 if ((fromIsolated || toIsolated) && prohibitedWithIsolated) {
                     throw new BadRequest(this.id + ' transfer () does not allow transfers between ' + fromAccount + ' and ' + toAccount);
                 }
                 else if (toSpot && fromIsolated) {
-                    method = 'sapiPostMarginIsolatedTransfer';
-                    request['transFrom'] = 'ISOLATED_MARGIN';
-                    request['transTo'] = 'SPOT';
-                    request['symbol'] = fromId;
+                    fromId = 'ISOLATED_MARGIN';
+                    request['fromSymbol'] = isolatedSymbol;
                 }
                 else if (fromSpot && toIsolated) {
-                    method = 'sapiPostMarginIsolatedTransfer';
-                    request['transFrom'] = 'SPOT';
-                    request['transTo'] = 'ISOLATED_MARGIN';
-                    request['symbol'] = toId;
+                    toId = 'ISOLATED_MARGIN';
+                    request['toSymbol'] = isolatedSymbol;
                 }
                 else {
-                    if (fromIsolated) {
+                    if (fromIsolated && toIsolated) {
                         request['fromSymbol'] = fromId;
-                        fromId = 'ISOLATEDMARGIN';
-                    }
-                    if (toIsolated) {
                         request['toSymbol'] = toId;
+                        fromId = 'ISOLATEDMARGIN';
                         toId = 'ISOLATEDMARGIN';
                     }
-                    request['type'] = fromId + '_' + toId;
+                    else {
+                        if (fromIsolated) {
+                            request['fromSymbol'] = isolatedSymbol;
+                            fromId = 'ISOLATEDMARGIN';
+                        }
+                        if (toIsolated) {
+                            request['toSymbol'] = isolatedSymbol;
+                            toId = 'ISOLATEDMARGIN';
+                        }
+                    }
                 }
+                request['type'] = fromId + '_' + toId;
             }
             else {
                 request['type'] = fromId + '_' + toId;
             }
         }
-        params = this.omit(params, 'type');
-        const response = await this[method](this.extend(request, params));
+        const response = await this.sapiPostAssetTransfer(this.extend(request, params));
         //
         //     {
         //         "tranId":13526853623
@@ -6709,7 +7505,6 @@ export default class binance extends Exchange {
          * @returns {object} a dictionary of [fee structures]{@link https://docs.ccxt.com/#/?id=fee-structure} indexed by market symbols
          */
         await this.loadMarkets();
-        let method = undefined;
         let type = undefined;
         [type, params] = this.handleMarketTypeAndParams('fetchTradingFees', undefined, params);
         let subType = undefined;
@@ -6717,16 +7512,16 @@ export default class binance extends Exchange {
         const isSpotOrMargin = (type === 'spot') || (type === 'margin');
         const isLinear = this.isLinear(type, subType);
         const isInverse = this.isInverse(type, subType);
+        let response = undefined;
         if (isSpotOrMargin) {
-            method = 'sapiGetAssetTradeFee';
+            response = await this.sapiGetAssetTradeFee(params);
         }
         else if (isLinear) {
-            method = 'fapiPrivateV2GetAccount';
+            response = await this.fapiPrivateV2GetAccount(params);
         }
         else if (isInverse) {
-            method = 'dapiPrivateGetAccount';
+            response = await this.dapiPrivateGetAccount(params);
         }
-        const response = await this[method](params);
         //
         // sapi / spot
         //
@@ -6880,6 +7675,7 @@ export default class binance extends Exchange {
         /**
          * @method
          * @name binance#futuresTransfer
+         * @ignore
          * @description transfer between futures account
          * @see https://binance-docs.github.io/apidocs/spot/en/#new-future-account-transfer-user_data
          * @param {string} code unified currency code
@@ -6923,17 +7719,16 @@ export default class binance extends Exchange {
         const request = {
             'symbol': market['id'],
         };
-        let method = undefined;
+        let response = undefined;
         if (market['linear']) {
-            method = 'fapiPublicGetPremiumIndex';
+            response = await this.fapiPublicGetPremiumIndex(this.extend(request, params));
         }
         else if (market['inverse']) {
-            method = 'dapiPublicGetPremiumIndex';
+            response = await this.dapiPublicGetPremiumIndex(this.extend(request, params));
         }
         else {
             throw new NotSupported(this.id + ' fetchFundingRate() supports linear and inverse contracts only');
         }
-        let response = await this[method](this.extend(request, params));
         if (market['inverse']) {
             response = response[0];
         }
@@ -6968,7 +7763,6 @@ export default class binance extends Exchange {
          */
         await this.loadMarkets();
         const request = {};
-        let method = undefined;
         let paginate = false;
         [paginate, params] = this.handleOptionAndParams(params, 'fetchFundingRateHistory', 'paginate');
         if (paginate) {
@@ -6985,15 +7779,6 @@ export default class binance extends Exchange {
         let subType = undefined;
         [subType, params] = this.handleSubTypeAndParams('fetchFundingRateHistory', market, params, 'linear');
         params = this.omit(params, 'type');
-        if (this.isLinear(type, subType)) {
-            method = 'fapiPublicGetFundingRate';
-        }
-        else if (this.isInverse(type, subType)) {
-            method = 'dapiPublicGetFundingRate';
-        }
-        if (method === undefined) {
-            throw new NotSupported(this.id + ' fetchFundingRateHistory() is not supported for ' + type + ' markets');
-        }
         if (since !== undefined) {
             request['startTime'] = since;
         }
@@ -7006,7 +7791,16 @@ export default class binance extends Exchange {
         if (limit !== undefined) {
             request['limit'] = limit;
         }
-        const response = await this[method](this.extend(request, params));
+        let response = undefined;
+        if (this.isLinear(type, subType)) {
+            response = await this.fapiPublicGetFundingRate(this.extend(request, params));
+        }
+        else if (this.isInverse(type, subType)) {
+            response = await this.dapiPublicGetFundingRate(this.extend(request, params));
+        }
+        else {
+            throw new NotSupported(this.id + ' fetchFundingRateHistory() is not supported for ' + type + ' markets');
+        }
         //
         //     {
         //         "symbol": "BTCUSDT",
@@ -7042,22 +7836,21 @@ export default class binance extends Exchange {
          */
         await this.loadMarkets();
         symbols = this.marketSymbols(symbols);
-        let method = undefined;
         const defaultType = this.safeString2(this.options, 'fetchFundingRates', 'defaultType', 'future');
         const type = this.safeString(params, 'type', defaultType);
         let subType = undefined;
         [subType, params] = this.handleSubTypeAndParams('fetchFundingRates', undefined, params, 'linear');
         const query = this.omit(params, 'type');
+        let response = undefined;
         if (this.isLinear(type, subType)) {
-            method = 'fapiPublicGetPremiumIndex';
+            response = await this.fapiPublicGetPremiumIndex(query);
         }
         else if (this.isInverse(type, subType)) {
-            method = 'dapiPublicGetPremiumIndex';
+            response = await this.dapiPublicGetPremiumIndex(query);
         }
         else {
             throw new NotSupported(this.id + ' fetchFundingRates() supports linear and inverse contracts only');
         }
-        const response = await this[method](query);
         const result = [];
         for (let i = 0; i < response.length; i++) {
             const entry = response[i];
@@ -7525,22 +8318,21 @@ export default class binance extends Exchange {
         // it contains useful stuff like the maintenance margin and initial margin for positions
         const leverageBrackets = this.safeValue(this.options, 'leverageBrackets');
         if ((leverageBrackets === undefined) || (reload)) {
-            let method = undefined;
             const defaultType = this.safeString(this.options, 'defaultType', 'future');
             const type = this.safeString(params, 'type', defaultType);
             const query = this.omit(params, 'type');
             let subType = undefined;
             [subType, params] = this.handleSubTypeAndParams('loadLeverageBrackets', undefined, params, 'linear');
+            let response = undefined;
             if (this.isLinear(type, subType)) {
-                method = 'fapiPrivateGetLeverageBracket';
+                response = await this.fapiPrivateGetLeverageBracket(query);
             }
             else if (this.isInverse(type, subType)) {
-                method = 'dapiPrivateV2GetLeverageBracket';
+                response = await this.dapiPrivateV2GetLeverageBracket(query);
             }
             else {
                 throw new NotSupported(this.id + ' loadLeverageBrackets() supports linear and inverse contracts only');
             }
-            const response = await this[method](query);
             this.options['leverageBrackets'] = {};
             for (let i = 0; i < response.length; i++) {
                 const entry = response[i];
@@ -7571,20 +8363,20 @@ export default class binance extends Exchange {
          * @returns {object} a dictionary of [leverage tiers structures]{@link https://docs.ccxt.com/#/?id=leverage-tiers-structure}, indexed by market symbols
          */
         await this.loadMarkets();
-        const [type, query] = this.handleMarketTypeAndParams('fetchLeverageTiers', undefined, params);
+        let type = undefined;
+        [type, params] = this.handleMarketTypeAndParams('fetchLeverageTiers', undefined, params);
         let subType = undefined;
-        [subType, params] = this.handleSubTypeAndParams('fetchLeverageTiers', undefined, query, 'linear');
-        let method = undefined;
+        [subType, params] = this.handleSubTypeAndParams('fetchLeverageTiers', undefined, params, 'linear');
+        let response = undefined;
         if (this.isLinear(type, subType)) {
-            method = 'fapiPrivateGetLeverageBracket';
+            response = await this.fapiPrivateGetLeverageBracket(params);
         }
         else if (this.isInverse(type, subType)) {
-            method = 'dapiPrivateV2GetLeverageBracket';
+            response = await this.dapiPrivateV2GetLeverageBracket(params);
         }
         else {
             throw new NotSupported(this.id + ' fetchLeverageTiers() supports linear and inverse contracts only');
         }
-        const response = await this[method](query);
         //
         // usdm
         //
@@ -7830,12 +8622,20 @@ export default class binance extends Exchange {
         /**
          * @method
          * @name binance#fetchPositions
+         * @see https://binance-docs.github.io/apidocs/futures/en/#position-information-v2-user_data
+         * @see https://binance-docs.github.io/apidocs/delivery/en/#position-information-user_data
+         * @see https://binance-docs.github.io/apidocs/futures/en/#account-information-v2-user_data
+         * @see https://binance-docs.github.io/apidocs/delivery/en/#account-information-user_data
+         * @see https://binance-docs.github.io/apidocs/voptions/en/#option-position-information-user_data
          * @description fetch all open positions
-         * @param {string[]|undefined} symbols list of unified market symbols
+         * @param {string[]} [symbols] list of unified market symbols
          * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @param {string} [method] method name to call, "positionRisk", "account" or "option", default is "positionRisk"
          * @returns {object[]} a list of [position structure]{@link https://docs.ccxt.com/#/?id=position-structure}
          */
-        const defaultMethod = this.safeString(this.options, 'fetchPositions', 'positionRisk');
+        const defaultValue = this.safeString(this.options, 'fetchPositions', 'positionRisk');
+        let defaultMethod = undefined;
+        [defaultMethod, params] = this.handleOptionAndParams(params, 'fetchPositions', 'method', defaultValue);
         if (defaultMethod === 'positionRisk') {
             return await this.fetchPositionsRisk(symbols, params);
         }
@@ -7846,13 +8646,14 @@ export default class binance extends Exchange {
             return await this.fetchOptionPositions(symbols, params);
         }
         else {
-            throw new NotSupported(this.id + '.options["fetchPositions"] = "' + defaultMethod + '" is invalid, please choose between "account", "positionRisk" and "option"');
+            throw new NotSupported(this.id + '.options["fetchPositions"]/params["method"] = "' + defaultMethod + '" is invalid, please choose between "account", "positionRisk" and "option"');
         }
     }
     async fetchAccountPositions(symbols = undefined, params = {}) {
         /**
          * @method
          * @name binance#fetchAccountPositions
+         * @ignore
          * @description fetch account positions
          * @see https://binance-docs.github.io/apidocs/futures/en/#account-information-v2-user_data
          * @see https://binance-docs.github.io/apidocs/delivery/en/#account-information-user_data
@@ -7867,23 +8668,22 @@ export default class binance extends Exchange {
         }
         await this.loadMarkets();
         await this.loadLeverageBrackets(false, params);
-        let method = undefined;
         const defaultType = this.safeString(this.options, 'defaultType', 'future');
         const type = this.safeString(params, 'type', defaultType);
         let query = this.omit(params, 'type');
         let subType = undefined;
         [subType, query] = this.handleSubTypeAndParams('fetchAccountPositions', undefined, params, 'linear');
+        let response = undefined;
         if (this.isLinear(type, subType)) {
-            method = 'fapiPrivateV2GetAccount';
+            response = await this.fapiPrivateV2GetAccount(query);
         }
         else if (this.isInverse(type, subType)) {
-            method = 'dapiPrivateGetAccount';
+            response = await this.dapiPrivateGetAccount(query);
         }
         else {
             throw new NotSupported(this.id + ' fetchPositions() supports linear and inverse contracts only');
         }
-        const account = await this[method](query);
-        const result = this.parseAccountPositions(account);
+        const result = this.parseAccountPositions(response);
         symbols = this.marketSymbols(symbols);
         return this.filterByArrayPositions(result, 'symbol', symbols, false);
     }
@@ -7891,6 +8691,7 @@ export default class binance extends Exchange {
         /**
          * @method
          * @name binance#fetchPositionsRisk
+         * @ignore
          * @description fetch positions risk
          * @see https://binance-docs.github.io/apidocs/futures/en/#position-information-v2-user_data
          * @see https://binance-docs.github.io/apidocs/delivery/en/#position-information-user_data
@@ -7906,15 +8707,15 @@ export default class binance extends Exchange {
         await this.loadMarkets();
         await this.loadLeverageBrackets(false, params);
         const request = {};
-        let method = undefined;
         let defaultType = 'future';
         defaultType = this.safeString(this.options, 'defaultType', defaultType);
         const type = this.safeString(params, 'type', defaultType);
         let subType = undefined;
         [subType, params] = this.handleSubTypeAndParams('fetchPositionsRisk', undefined, params, 'linear');
         params = this.omit(params, 'type');
+        let response = undefined;
         if (this.isLinear(type, subType)) {
-            method = 'fapiPrivateV2GetPositionRisk';
+            response = await this.fapiPrivateV2GetPositionRisk(this.extend(request, params));
             // ### Response examples ###
             //
             // For One-way position mode:
@@ -7971,12 +8772,11 @@ export default class binance extends Exchange {
             //     ]
         }
         else if (this.isInverse(type, subType)) {
-            method = 'dapiPrivateGetPositionRisk';
+            response = await this.dapiPrivateGetPositionRisk(this.extend(request, params));
         }
         else {
             throw new NotSupported(this.id + ' fetchPositionsRisk() supports linear and inverse contracts only');
         }
-        const response = await this[method](this.extend(request, params));
         const result = [];
         for (let i = 0; i < response.length; i++) {
             const parsed = this.parsePositionRisk(response[i]);
@@ -8000,7 +8800,6 @@ export default class binance extends Exchange {
          */
         await this.loadMarkets();
         let market = undefined;
-        let method = undefined;
         const request = {
             'incomeType': 'FUNDING_FEE', // "TRANSFER"，"WELCOME_BONUS", "REALIZED_PNL"，"FUNDING_FEE", "COMMISSION" and "INSURANCE_CLEAR"
         };
@@ -8022,16 +8821,16 @@ export default class binance extends Exchange {
         const defaultType = this.safeString2(this.options, 'fetchFundingHistory', 'defaultType', 'future');
         const type = this.safeString(params, 'type', defaultType);
         params = this.omit(params, 'type');
+        let response = undefined;
         if (this.isLinear(type, subType)) {
-            method = 'fapiPrivateGetIncome';
+            response = await this.fapiPrivateGetIncome(this.extend(request, params));
         }
         else if (this.isInverse(type, subType)) {
-            method = 'dapiPrivateGetIncome';
+            response = await this.dapiPrivateGetIncome(this.extend(request, params));
         }
         else {
             throw new NotSupported(this.id + ' fetchFundingHistory() supports linear and inverse contracts only');
         }
-        const response = await this[method](this.extend(request, params));
         return this.parseIncomes(response, market, since, limit);
     }
     async setLeverage(leverage, symbol = undefined, params = {}) {
@@ -8056,21 +8855,21 @@ export default class binance extends Exchange {
         }
         await this.loadMarkets();
         const market = this.market(symbol);
-        let method;
-        if (market['linear']) {
-            method = 'fapiPrivatePostLeverage';
-        }
-        else if (market['inverse']) {
-            method = 'dapiPrivatePostLeverage';
-        }
-        else {
-            throw new NotSupported(this.id + ' setLeverage() supports linear and inverse contracts only');
-        }
         const request = {
             'symbol': market['id'],
             'leverage': leverage,
         };
-        return await this[method](this.extend(request, params));
+        let response = undefined;
+        if (market['linear']) {
+            response = await this.fapiPrivatePostLeverage(this.extend(request, params));
+        }
+        else if (market['inverse']) {
+            response = await this.dapiPrivatePostLeverage(this.extend(request, params));
+        }
+        else {
+            throw new NotSupported(this.id + ' setLeverage() supports linear and inverse contracts only');
+        }
+        return response;
     }
     async setMarginMode(marginMode, symbol = undefined, params = {}) {
         /**
@@ -8103,23 +8902,21 @@ export default class binance extends Exchange {
         }
         await this.loadMarkets();
         const market = this.market(symbol);
-        let method = undefined;
-        if (market['linear']) {
-            method = 'fapiPrivatePostMarginType';
-        }
-        else if (market['inverse']) {
-            method = 'dapiPrivatePostMarginType';
-        }
-        else {
-            throw new NotSupported(this.id + ' setMarginMode() supports linear and inverse contracts only');
-        }
         const request = {
             'symbol': market['id'],
             'marginType': marginMode,
         };
         let response = undefined;
         try {
-            response = await this[method](this.extend(request, params));
+            if (market['linear']) {
+                response = await this.fapiPrivatePostMarginType(this.extend(request, params));
+            }
+            else if (market['inverse']) {
+                response = await this.dapiPrivatePostMarginType(this.extend(request, params));
+            }
+            else {
+                throw new NotSupported(this.id + ' setMarginMode() supports linear and inverse contracts only');
+            }
         }
         catch (e) {
             // not an error
@@ -8157,6 +8954,8 @@ export default class binance extends Exchange {
         const defaultType = this.safeString(this.options, 'defaultType', 'future');
         const type = this.safeString(params, 'type', defaultType);
         params = this.omit(params, ['type']);
+        let subType = undefined;
+        [subType, params] = this.handleSubTypeAndParams('setPositionMode', undefined, params);
         let dualSidePosition = undefined;
         if (hedged) {
             dualSidePosition = 'true';
@@ -8167,13 +8966,13 @@ export default class binance extends Exchange {
         const request = {
             'dualSidePosition': dualSidePosition,
         };
-        let method = undefined;
-        if (this.isInverse(type)) {
-            method = 'dapiPrivatePostPositionSideDual';
+        let response = undefined;
+        if (this.isInverse(type, subType)) {
+            response = await this.dapiPrivatePostPositionSideDual(this.extend(request, params));
         }
         else {
             // default to future
-            method = 'fapiPrivatePostPositionSideDual';
+            response = await this.fapiPrivatePostPositionSideDual(this.extend(request, params));
         }
         //
         //     {
@@ -8181,7 +8980,7 @@ export default class binance extends Exchange {
         //       "msg": "success"
         //     }
         //
-        return await this[method](this.extend(request, params));
+        return response;
     }
     async fetchSettlementHistory(symbol = undefined, since = undefined, limit = undefined, params = {}) {
         /**
@@ -8393,24 +9192,9 @@ export default class binance extends Exchange {
         if (code !== undefined) {
             currency = this.currency(code);
         }
-        let method = undefined;
         const request = {};
         [type, params] = this.handleMarketTypeAndParams('fetchLedger', undefined, params);
         [subType, params] = this.handleSubTypeAndParams('fetchLedger', undefined, params);
-        if (type === 'option') {
-            this.checkRequiredArgument('fetchLedger', code, 'code');
-            request['currency'] = currency['id'];
-            method = 'eapiPrivateGetBill';
-        }
-        else if (this.isLinear(type, subType)) {
-            method = 'fapiPrivateGetIncome';
-        }
-        else if (this.isInverse(type, subType)) {
-            method = 'dapiPrivateGetIncome';
-        }
-        else {
-            throw new NotSupported(this.id + ' fetchLedger() supports contract wallets only');
-        }
         if (since !== undefined) {
             request['startTime'] = since;
         }
@@ -8422,7 +9206,21 @@ export default class binance extends Exchange {
             params = this.omit(params, 'until');
             request['endTime'] = until;
         }
-        const response = await this[method](this.extend(request, params));
+        let response = undefined;
+        if (type === 'option') {
+            this.checkRequiredArgument('fetchLedger', code, 'code');
+            request['currency'] = currency['id'];
+            response = await this.eapiPrivateGetBill(this.extend(request, params));
+        }
+        else if (this.isLinear(type, subType)) {
+            response = await this.fapiPrivateGetIncome(this.extend(request, params));
+        }
+        else if (this.isInverse(type, subType)) {
+            response = await this.dapiPrivateGetIncome(this.extend(request, params));
+        }
+        else {
+            throw new NotSupported(this.id + ' fetchLedger() supports contract wallets only');
+        }
         //
         // options (eapi)
         //
@@ -8565,7 +9363,7 @@ export default class binance extends Exchange {
                 throw new AuthenticationError(this.id + ' userDataStream endpoint requires `apiKey` credential');
             }
         }
-        else if ((api === 'private') || (api === 'eapiPrivate') || (api === 'sapi' && path !== 'system/status') || (api === 'sapiV2') || (api === 'sapiV3') || (api === 'sapiV4') || (api === 'dapiPrivate') || (api === 'dapiPrivateV2') || (api === 'fapiPrivate') || (api === 'fapiPrivateV2') || (api === 'papi')) {
+        else if ((api === 'private') || (api === 'eapiPrivate') || (api === 'sapi' && path !== 'system/status') || (api === 'sapiV2') || (api === 'sapiV3') || (api === 'sapiV4') || (api === 'dapiPrivate') || (api === 'dapiPrivateV2') || (api === 'fapiPrivate') || (api === 'fapiPrivateV2') || (api === 'papi' && path !== 'ping')) {
             this.checkRequiredCredentials();
             if (method === 'POST' && ((path === 'order') || (path === 'sor/order'))) {
                 // inject in implicit API calls
@@ -8653,6 +9451,30 @@ export default class binance extends Exchange {
         }
         return { 'url': url, 'method': method, 'body': body, 'headers': headers };
     }
+    getExceptionsByUrl(url, exactOrBroad) {
+        let marketType = undefined;
+        const hostname = (this.hostname !== undefined) ? this.hostname : 'binance.com';
+        if (url.startsWith('https://api.' + hostname + '/')) {
+            marketType = 'spot';
+        }
+        else if (url.startsWith('https://dapi.' + hostname + '/')) {
+            marketType = 'inverse';
+        }
+        else if (url.startsWith('https://fapi.' + hostname + '/')) {
+            marketType = 'linear';
+        }
+        else if (url.startsWith('https://eapi.' + hostname + '/')) {
+            marketType = 'option';
+        }
+        else if (url.startsWith('https://papi.' + hostname + '/')) {
+            marketType = 'portfoliomargin';
+        }
+        if (marketType !== undefined) {
+            const exceptionsForMarketType = this.safeValue(this.exceptions, marketType, {});
+            return this.safeValue(exceptionsForMarketType, exactOrBroad, {});
+        }
+        return {};
+    }
     handleErrors(code, reason, url, method, headers, body, response, requestHeaders, requestBody) {
         if ((code === 418) || (code === 429)) {
             throw new DDoSProtection(this.id + ' ' + code.toString() + ' ' + reason + ' ' + body);
@@ -8675,7 +9497,7 @@ export default class binance extends Exchange {
             return undefined; // fallback to default error handler
         }
         // response in format {'msg': 'The coin does not exist.', 'success': true/false}
-        const success = this.safeValue(response, 'success', true);
+        const success = this.safeBool(response, 'success', true);
         if (!success) {
             const messageNew = this.safeString(response, 'msg');
             let parsedMessage = undefined;
@@ -8694,7 +9516,9 @@ export default class binance extends Exchange {
         }
         const message = this.safeString(response, 'msg');
         if (message !== undefined) {
+            this.throwExactlyMatchedException(this.getExceptionsByUrl(url, 'exact'), message, this.id + ' ' + message);
             this.throwExactlyMatchedException(this.exceptions['exact'], message, this.id + ' ' + message);
+            this.throwBroadlyMatchedException(this.getExceptionsByUrl(url, 'broad'), message, this.id + ' ' + message);
             this.throwBroadlyMatchedException(this.exceptions['broad'], message, this.id + ' ' + message);
         }
         // checks against error codes
@@ -8720,6 +9544,7 @@ export default class binance extends Exchange {
                 // binanceusdm {"code":-4046,"msg":"No need to change margin type."}
                 throw new MarginModeAlreadySet(feedback);
             }
+            this.throwExactlyMatchedException(this.getExceptionsByUrl(url, 'exact'), error, feedback);
             this.throwExactlyMatchedException(this.exceptions['exact'], error, feedback);
             throw new ExchangeError(feedback);
         }
@@ -8733,6 +9558,7 @@ export default class binance extends Exchange {
                 const element = response[0];
                 const errorCode = this.safeString(element, 'code');
                 if (errorCode !== undefined) {
+                    this.throwExactlyMatchedException(this.getExceptionsByUrl(url, 'exact'), errorCode, this.id + ' ' + body);
                     this.throwExactlyMatchedException(this.exceptions['exact'], errorCode, this.id + ' ' + body);
                 }
             }
@@ -8787,17 +9613,16 @@ export default class binance extends Exchange {
             'symbol': market['id'],
             'amount': amount,
         };
-        let method = undefined;
+        let response = undefined;
         let code = undefined;
         if (market['linear']) {
-            method = 'fapiPrivatePostPositionMargin';
             code = market['quote'];
+            response = await this.fapiPrivatePostPositionMargin(this.extend(request, params));
         }
         else {
-            method = 'dapiPrivatePostPositionMargin';
             code = market['base'];
+            response = await this.dapiPrivatePostPositionMargin(this.extend(request, params));
         }
-        const response = await this[method](this.extend(request, params));
         //
         //     {
         //         "code": 200,
@@ -9119,7 +9944,7 @@ export default class binance extends Exchange {
          * @method
          * @name binance#repayCrossMargin
          * @description repay borrowed margin and interest
-         * @see https://binance-docs.github.io/apidocs/spot/en/#margin-account-repay-margin
+         * @see https://binance-docs.github.io/apidocs/spot/en/#margin-account-borrow-repay-margin
          * @param {string} code unified currency code of the currency to repay
          * @param {float} amount the amount to repay
          * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -9131,8 +9956,9 @@ export default class binance extends Exchange {
             'asset': currency['id'],
             'amount': this.currencyToPrecision(code, amount),
             'isIsolated': 'FALSE',
+            'type': 'REPAY',
         };
-        const response = await this.sapiPostMarginRepay(this.extend(request, params));
+        const response = await this.sapiPostMarginBorrowRepay(this.extend(request, params));
         //
         //     {
         //         "tranId": 108988250265,
@@ -9146,7 +9972,7 @@ export default class binance extends Exchange {
          * @method
          * @name binance#repayIsolatedMargin
          * @description repay borrowed margin and interest
-         * @see https://binance-docs.github.io/apidocs/spot/en/#margin-account-repay-margin
+         * @see https://binance-docs.github.io/apidocs/spot/en/#margin-account-borrow-repay-margin
          * @param {string} symbol unified market symbol, required for isolated margin
          * @param {string} code unified currency code of the currency to repay
          * @param {float} amount the amount to repay
@@ -9161,8 +9987,9 @@ export default class binance extends Exchange {
             'amount': this.currencyToPrecision(code, amount),
             'symbol': market['id'],
             'isIsolated': 'TRUE',
+            'type': 'REPAY',
         };
-        const response = await this.sapiPostMarginRepay(this.extend(request, params));
+        const response = await this.sapiPostMarginBorrowRepay(this.extend(request, params));
         //
         //     {
         //         "tranId": 108988250265,
@@ -9176,7 +10003,7 @@ export default class binance extends Exchange {
          * @method
          * @name binance#borrowCrossMargin
          * @description create a loan to borrow margin
-         * @see https://binance-docs.github.io/apidocs/spot/en/#margin-account-borrow-margin
+         * @see https://binance-docs.github.io/apidocs/spot/en/#margin-account-borrow-repay-margin
          * @param {string} code unified currency code of the currency to borrow
          * @param {float} amount the amount to borrow
          * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -9188,8 +10015,9 @@ export default class binance extends Exchange {
             'asset': currency['id'],
             'amount': this.currencyToPrecision(code, amount),
             'isIsolated': 'FALSE',
+            'type': 'BORROW',
         };
-        const response = await this.sapiPostMarginLoan(this.extend(request, params));
+        const response = await this.sapiPostMarginBorrowRepay(this.extend(request, params));
         //
         //     {
         //         "tranId": 108988250265,
@@ -9203,7 +10031,7 @@ export default class binance extends Exchange {
          * @method
          * @name binance#borrowIsolatedMargin
          * @description create a loan to borrow margin
-         * @see https://binance-docs.github.io/apidocs/spot/en/#margin-account-borrow-margin
+         * @see https://binance-docs.github.io/apidocs/spot/en/#margin-account-borrow-repay-margin
          * @param {string} symbol unified market symbol, required for isolated margin
          * @param {string} code unified currency code of the currency to borrow
          * @param {float} amount the amount to borrow
@@ -9218,8 +10046,9 @@ export default class binance extends Exchange {
             'amount': this.currencyToPrecision(code, amount),
             'symbol': market['id'],
             'isIsolated': 'TRUE',
+            'type': 'BORROW',
         };
-        const response = await this.sapiPostMarginLoan(this.extend(request, params));
+        const response = await this.sapiPostMarginBorrowRepay(this.extend(request, params));
         //
         //     {
         //         "tranId": 108988250265,
@@ -9297,11 +10126,13 @@ export default class binance extends Exchange {
             const duration = this.parseTimeframe(timeframe);
             request['endTime'] = this.sum(since, duration * limit * 1000);
         }
-        let method = 'fapiDataGetOpenInterestHist';
+        let response = undefined;
         if (market['inverse']) {
-            method = 'dapiDataGetOpenInterestHist';
+            response = await this.dapiDataGetOpenInterestHist(this.extend(request, params));
         }
-        const response = await this[method](this.extend(request, params));
+        else {
+            response = await this.fapiDataGetOpenInterestHist(this.extend(request, params));
+        }
         //
         //  [
         //      {
@@ -9337,14 +10168,16 @@ export default class binance extends Exchange {
         else {
             request['symbol'] = market['id'];
         }
-        let method = 'fapiPublicGetOpenInterest';
+        let response = undefined;
         if (market['option']) {
-            method = 'eapiPublicGetOpenInterest';
+            response = await this.eapiPublicGetOpenInterest(this.extend(request, params));
         }
         else if (market['inverse']) {
-            method = 'dapiPublicGetOpenInterest';
+            response = await this.dapiPublicGetOpenInterest(this.extend(request, params));
         }
-        const response = await this[method](this.extend(request, params));
+        else {
+            response = await this.fapiPublicGetOpenInterest(this.extend(request, params));
+        }
         //
         // futures (fapi)
         //

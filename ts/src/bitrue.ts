@@ -6,13 +6,13 @@ import { ExchangeError, ArgumentsRequired, ExchangeNotAvailable, InsufficientFun
 import { Precise } from './base/Precise.js';
 import { TRUNCATE, TICK_SIZE } from './base/functions/number.js';
 import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
-import { Balances, Currency, Int, Market, OHLCV, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade, Transaction } from './base/types.js';
+import type { Balances, Currency, Int, Market, OHLCV, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade, Transaction } from './base/types.js';
 
 //  ---------------------------------------------------------------------------
 
 /**
  * @class bitrue
- * @extends Exchange
+ * @augments Exchange
  */
 export default class bitrue extends Exchange {
     describe () {
@@ -54,6 +54,7 @@ export default class bitrue extends Exchange {
                 'fetchDepositsWithdrawals': false,
                 'fetchDepositWithdrawFee': 'emulated',
                 'fetchDepositWithdrawFees': true,
+                'fetchFundingRate': false,
                 'fetchIsolatedBorrowRate': false,
                 'fetchIsolatedBorrowRates': false,
                 'fetchMarginMode': false,
@@ -1539,16 +1540,8 @@ export default class bitrue extends Exchange {
             const first = this.safeString (symbols, 0);
             const market = this.market (first);
             if (market['swap']) {
-                request['contractName'] = market['id'];
-                if (market['linear']) {
-                    response = await this.fapiV1PublicGetTicker (this.extend (request, params));
-                } else if (market['inverse']) {
-                    response = await this.dapiV1PublicGetTicker (this.extend (request, params));
-                }
-                response['symbol'] = market['id'];
-                data = [ response ];
+                throw new NotSupported (this.id + ' fetchTickers does not support swap markets, please use fetchTicker instead');
             } else if (market['spot']) {
-                request['symbol'] = market['id'];
                 response = await this.spotV1PublicGetTicker24hr (this.extend (request, params));
                 data = response;
             } else {
@@ -1557,7 +1550,7 @@ export default class bitrue extends Exchange {
         } else {
             [ type, params ] = this.handleMarketTypeAndParams ('fetchTickers', undefined, params);
             if (type !== 'spot') {
-                throw new NotSupported (this.id + ' fetchTickers only support spot when symbols is not set');
+                throw new NotSupported (this.id + ' fetchTickers only support spot when symbols are not proved');
             }
             response = await this.spotV1PublicGetTicker24hr (this.extend (request, params));
             data = response;
@@ -3180,7 +3173,7 @@ export default class bitrue extends Exchange {
         }
         // check success value for wapi endpoints
         // response in format {'msg': 'The coin does not exist.', 'success': true/false}
-        const success = this.safeValue (response, 'success', true);
+        const success = this.safeBool (response, 'success', true);
         if (!success) {
             const messageInner = this.safeString (response, 'msg');
             let parsedMessage = undefined;

@@ -36,6 +36,7 @@ class bit2c(Exchange, ImplicitAPI):
                 'future': False,
                 'option': False,
                 'addMargin': False,
+                'cancelAllOrders': False,
                 'cancelOrder': True,
                 'closeAllPositions': False,
                 'closePosition': False,
@@ -278,14 +279,13 @@ class bit2c(Exchange, ImplicitAPI):
 
     def parse_ticker(self, ticker, market: Market = None) -> Ticker:
         symbol = self.safe_symbol(None, market)
-        timestamp = self.milliseconds()
         averagePrice = self.safe_string(ticker, 'av')
         baseVolume = self.safe_string(ticker, 'a')
         last = self.safe_string(ticker, 'll')
         return self.safe_ticker({
             'symbol': symbol,
-            'timestamp': timestamp,
-            'datetime': self.iso8601(timestamp),
+            'timestamp': None,
+            'datetime': None,
             'high': None,
             'low': None,
             'bid': self.safe_string(ticker, 'h'),
@@ -339,7 +339,11 @@ class bit2c(Exchange, ImplicitAPI):
             request['date'] = self.parse_to_int(since)
         if limit is not None:
             request['limit'] = limit  # max 100000
-        response = await getattr(self, method)(self.extend(request, params))
+        response = None
+        if method == 'public_get_exchanges_pair_trades':
+            response = await self.publicGetExchangesPairTrades(self.extend(request, params))
+        else:
+            response = await self.publicGetExchangesPairLasttrades(self.extend(request, params))
         #
         #     [
         #         {"date":1651785980,"price":127975.68,"amount":0.3750321,"isBid":true,"tid":1261018},
@@ -420,7 +424,7 @@ class bit2c(Exchange, ImplicitAPI):
             request['Price'] = price
             amountString = self.number_to_string(amount)
             priceString = self.number_to_string(price)
-            request['Total'] = self.parse_number(Precise.string_mul(amountString, priceString))
+            request['Total'] = self.parse_to_numeric(Precise.string_mul(amountString, priceString))
             request['IsBid'] = (side == 'buy')
         response = await getattr(self, method)(self.extend(request, params))
         return self.parse_order(response, market)

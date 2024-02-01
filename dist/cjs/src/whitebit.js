@@ -10,7 +10,7 @@ var sha512 = require('./static_dependencies/noble-hashes/sha512.js');
 //  ---------------------------------------------------------------------------
 /**
  * @class whitebit
- * @extends Exchange
+ * @augments Exchange
  */
 class whitebit extends whitebit$1 {
     describe() {
@@ -19,7 +19,7 @@ class whitebit extends whitebit$1 {
             'name': 'WhiteBit',
             'version': 'v4',
             'countries': ['EE'],
-            'rateLimit': 500,
+            'rateLimit': 50,
             'pro': true,
             'has': {
                 'CORS': undefined,
@@ -28,7 +28,6 @@ class whitebit extends whitebit$1 {
                 'swap': false,
                 'future': false,
                 'option': false,
-                'borrowMargin': false,
                 'cancelAllOrders': false,
                 'cancelOrder': true,
                 'cancelOrders': false,
@@ -67,6 +66,7 @@ class whitebit extends whitebit$1 {
                 'fetchOrderTrades': true,
                 'fetchPositionMode': false,
                 'fetchPremiumIndexOHLCV': false,
+                'fetchStatus': true,
                 'fetchTicker': true,
                 'fetchTickers': true,
                 'fetchTime': true,
@@ -74,7 +74,8 @@ class whitebit extends whitebit$1 {
                 'fetchTradingFee': false,
                 'fetchTradingFees': true,
                 'fetchTransactionFees': true,
-                'repayMargin': false,
+                'repayCrossMargin': false,
+                'repayIsolatedMargin': false,
                 'setLeverage': true,
                 'transfer': true,
                 'withdraw': true,
@@ -421,8 +422,8 @@ class whitebit extends whitebit$1 {
             const currency = response[id];
             // breaks down in Python due to utf8 encoding issues on the exchange side
             // const name = this.safeString (currency, 'name');
-            const canDeposit = this.safeValue(currency, 'can_deposit', true);
-            const canWithdraw = this.safeValue(currency, 'can_withdraw', true);
+            const canDeposit = this.safeBool(currency, 'can_deposit', true);
+            const canWithdraw = this.safeBool(currency, 'can_withdraw', true);
             const active = canDeposit && canWithdraw;
             const code = this.safeCurrencyCode(id);
             result[code] = {
@@ -1406,7 +1407,7 @@ class whitebit extends whitebit$1 {
          * @see https://docs.whitebit.com/private/http-trade-v4/#query-executed-orders
          * @param {string} symbol unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
-         * @param {int} [limit] the maximum number of  orde structures to retrieve
+         * @param {int} [limit] the maximum number of order structures to retrieve
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {Order[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
          */

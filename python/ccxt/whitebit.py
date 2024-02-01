@@ -32,7 +32,7 @@ class whitebit(Exchange, ImplicitAPI):
             'name': 'WhiteBit',
             'version': 'v4',
             'countries': ['EE'],
-            'rateLimit': 500,
+            'rateLimit': 50,
             'pro': True,
             'has': {
                 'CORS': None,
@@ -41,7 +41,6 @@ class whitebit(Exchange, ImplicitAPI):
                 'swap': False,
                 'future': False,
                 'option': False,
-                'borrowMargin': False,
                 'cancelAllOrders': False,
                 'cancelOrder': True,
                 'cancelOrders': False,
@@ -80,6 +79,7 @@ class whitebit(Exchange, ImplicitAPI):
                 'fetchOrderTrades': True,
                 'fetchPositionMode': False,
                 'fetchPremiumIndexOHLCV': False,
+                'fetchStatus': True,
                 'fetchTicker': True,
                 'fetchTickers': True,
                 'fetchTime': True,
@@ -87,7 +87,8 @@ class whitebit(Exchange, ImplicitAPI):
                 'fetchTradingFee': False,
                 'fetchTradingFees': True,
                 'fetchTransactionFees': True,
-                'repayMargin': False,
+                'repayCrossMargin': False,
+                'repayIsolatedMargin': False,
                 'setLeverage': True,
                 'transfer': True,
                 'withdraw': True,
@@ -428,8 +429,8 @@ class whitebit(Exchange, ImplicitAPI):
             currency = response[id]
             # breaks down in Python due to utf8 encoding issues on the exchange side
             # name = self.safe_string(currency, 'name')
-            canDeposit = self.safe_value(currency, 'can_deposit', True)
-            canWithdraw = self.safe_value(currency, 'can_withdraw', True)
+            canDeposit = self.safe_bool(currency, 'can_deposit', True)
+            canWithdraw = self.safe_bool(currency, 'can_withdraw', True)
             active = canDeposit and canWithdraw
             code = self.safe_currency_code(id)
             result[code] = {
@@ -1334,7 +1335,7 @@ class whitebit(Exchange, ImplicitAPI):
         :see: https://docs.whitebit.com/private/http-trade-v4/#query-executed-orders
         :param str symbol: unified market symbol of the market orders were made in
         :param int [since]: the earliest time in ms to fetch orders for
-        :param int [limit]: the maximum number of  orde structures to retrieve
+        :param int [limit]: the maximum number of order structures to retrieve
         :param dict [params]: extra parameters specific to the exchange API endpoint
         :returns Order[]: a list of `order structures <https://docs.ccxt.com/#/?id=order-structure>`
         """

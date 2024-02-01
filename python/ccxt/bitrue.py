@@ -72,6 +72,7 @@ class bitrue(Exchange, ImplicitAPI):
                 'fetchDepositsWithdrawals': False,
                 'fetchDepositWithdrawFee': 'emulated',
                 'fetchDepositWithdrawFees': True,
+                'fetchFundingRate': False,
                 'fetchIsolatedBorrowRate': False,
                 'fetchIsolatedBorrowRates': False,
                 'fetchMarginMode': False,
@@ -1483,15 +1484,8 @@ class bitrue(Exchange, ImplicitAPI):
             first = self.safe_string(symbols, 0)
             market = self.market(first)
             if market['swap']:
-                request['contractName'] = market['id']
-                if market['linear']:
-                    response = self.fapiV1PublicGetTicker(self.extend(request, params))
-                elif market['inverse']:
-                    response = self.dapiV1PublicGetTicker(self.extend(request, params))
-                response['symbol'] = market['id']
-                data = [response]
+                raise NotSupported(self.id + ' fetchTickers does not support swap markets, please use fetchTicker instead')
             elif market['spot']:
-                request['symbol'] = market['id']
                 response = self.spotV1PublicGetTicker24hr(self.extend(request, params))
                 data = response
             else:
@@ -1499,7 +1493,7 @@ class bitrue(Exchange, ImplicitAPI):
         else:
             type, params = self.handle_market_type_and_params('fetchTickers', None, params)
             if type != 'spot':
-                raise NotSupported(self.id + ' fetchTickers only support spot when symbols is not set')
+                raise NotSupported(self.id + ' fetchTickers only support spot when symbols are not proved')
             response = self.spotV1PublicGetTicker24hr(self.extend(request, params))
             data = response
         #
@@ -2969,7 +2963,7 @@ class bitrue(Exchange, ImplicitAPI):
             return None  # fallback to default error handler
         # check success value for wapi endpoints
         # response in format {'msg': 'The coin does not exist.', 'success': True/false}
-        success = self.safe_value(response, 'success', True)
+        success = self.safe_bool(response, 'success', True)
         if not success:
             messageInner = self.safe_string(response, 'msg')
             parsedMessage = None

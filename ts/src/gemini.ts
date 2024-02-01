@@ -6,13 +6,13 @@ import { ExchangeError, ArgumentsRequired, BadRequest, OrderNotFound, InvalidOrd
 import { Precise } from './base/Precise.js';
 import { TICK_SIZE } from './base/functions/number.js';
 import { sha384 } from './static_dependencies/noble-hashes/sha512.js';
-import { Balances, Currency, Int, Market, OHLCV, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade, Transaction } from './base/types.js';
+import type { Balances, Currency, Int, Market, OHLCV, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade, Transaction } from './base/types.js';
 
 //  ---------------------------------------------------------------------------
 
 /**
  * @class gemini
- * @extends Exchange
+ * @augments Exchange
  */
 export default class gemini extends Exchange {
     describe () {
@@ -305,6 +305,7 @@ export default class gemini extends Exchange {
         /**
          * @method
          * @name gemini#fetchCurrenciesFromWeb
+         * @ignore
          * @description fetches all available currencies on an exchange
          * @param {object} [params] extra parameters specific to the endpoint
          * @returns {object} an associative dictionary of currencies
@@ -518,7 +519,7 @@ export default class gemini extends Exchange {
             'post_only': true,
             'limit_only': true,
         };
-        return this.safeValue (statuses, status, true);
+        return this.safeBool (statuses, status, true);
     }
 
     async fetchUSDTMarkets (params = {}) {
@@ -559,7 +560,7 @@ export default class gemini extends Exchange {
             result[marketId] = this.parseMarket (market);
         }
         const options = this.safeValue (this.options, 'fetchMarketsFromAPI', {});
-        const fetchDetailsForAllSymbols = this.safeValue (options, 'fetchDetailsForAllSymbols', false);
+        const fetchDetailsForAllSymbols = this.safeBool (options, 'fetchDetailsForAllSymbols', false);
         const fetchDetailsForMarketIds = this.safeValue (options, 'fetchDetailsForMarketIds', []);
         let promises = [];
         let marketIds = [];
@@ -967,7 +968,7 @@ export default class gemini extends Exchange {
             'symbol': market['id'],
         };
         if (limit !== undefined) {
-            request['limit_trades'] = limit;
+            request['limit_trades'] = Math.min (limit, 500);
         }
         if (since !== undefined) {
             request['timestamp'] = since;
@@ -1384,7 +1385,7 @@ export default class gemini extends Exchange {
                     request['options'] = [ 'maker-or-cancel' ];
                 }
             }
-            const postOnly = this.safeValue (params, 'postOnly', false);
+            const postOnly = this.safeBool (params, 'postOnly', false);
             params = this.omit (params, 'postOnly');
             if (postOnly) {
                 request['options'] = [ 'maker-or-cancel' ];

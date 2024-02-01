@@ -296,6 +296,7 @@ class gemini extends Exchange {
 
     public function fetch_currencies_from_web($params = array ()) {
         /**
+         * @ignore
          * fetches all available currencies on an exchange
          * @param {array} [$params] extra parameters specific to the endpoint
          * @return {array} an associative dictionary of currencies
@@ -507,7 +508,7 @@ class gemini extends Exchange {
             'post_only' => true,
             'limit_only' => true,
         );
-        return $this->safe_value($statuses, $status, true);
+        return $this->safe_bool($statuses, $status, true);
     }
 
     public function fetch_usdt_markets($params = array ()) {
@@ -548,7 +549,7 @@ class gemini extends Exchange {
             $result[$marketId] = $this->parse_market($market);
         }
         $options = $this->safe_value($this->options, 'fetchMarketsFromAPI', array());
-        $fetchDetailsForAllSymbols = $this->safe_value($options, 'fetchDetailsForAllSymbols', false);
+        $fetchDetailsForAllSymbols = $this->safe_bool($options, 'fetchDetailsForAllSymbols', false);
         $fetchDetailsForMarketIds = $this->safe_value($options, 'fetchDetailsForMarketIds', array());
         $promises = array();
         $marketIds = array();
@@ -948,7 +949,7 @@ class gemini extends Exchange {
             'symbol' => $market['id'],
         );
         if ($limit !== null) {
-            $request['limit_trades'] = $limit;
+            $request['limit_trades'] = min ($limit, 500);
         }
         if ($since !== null) {
             $request['timestamp'] = $since;
@@ -1355,7 +1356,7 @@ class gemini extends Exchange {
                     $request['options'] = array( 'maker-or-cancel' );
                 }
             }
-            $postOnly = $this->safe_value($params, 'postOnly', false);
+            $postOnly = $this->safe_bool($params, 'postOnly', false);
             $params = $this->omit($params, 'postOnly');
             if ($postOnly) {
                 $request['options'] = array( 'maker-or-cancel' );

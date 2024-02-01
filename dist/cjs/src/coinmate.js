@@ -10,7 +10,7 @@ var sha256 = require('./static_dependencies/noble-hashes/sha256.js');
 //  ---------------------------------------------------------------------------
 /**
  * @class coinmate
- * @extends Exchange
+ * @augments Exchange
  */
 class coinmate extends coinmate$1 {
     describe() {
@@ -541,7 +541,7 @@ class coinmate extends coinmate$1 {
         //
         const data = this.safeValue(response, 'data');
         const transaction = this.parseTransaction(data, currency);
-        const fillResponseFromRequest = this.safeValue(withdrawOptions, 'fillResponseFromRequest', true);
+        const fillResponseFromRequest = this.safeBool(withdrawOptions, 'fillResponseFromRequest', true);
         if (fillResponseFromRequest) {
             transaction['amount'] = amount;
             transaction['currency'] = code;

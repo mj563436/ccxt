@@ -939,7 +939,7 @@ class hollaex extends Exchange {
              * fetches information on multiple closed orders made by the user
              * @param {string} $symbol unified market $symbol of the market orders were made in
              * @param {int} [$since] the earliest time in ms to fetch orders for
-             * @param {int} [$limit] the maximum number of  orde structures to retrieve
+             * @param {int} [$limit] the maximum number of order structures to retrieve
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {Order[]} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
              */
@@ -999,7 +999,7 @@ class hollaex extends Exchange {
              * fetches information on multiple orders made by the user
              * @param {string} $symbol unified $market $symbol of the $market orders were made in
              * @param {int} [$since] the earliest time in ms to fetch orders for
-             * @param {int} [$limit] the maximum number of  orde structures to retrieve
+             * @param {int} [$limit] the maximum number of order structures to retrieve
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {Order[]} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
              */
@@ -1113,7 +1113,7 @@ class hollaex extends Exchange {
         $filled = $this->safe_string($order, 'filled');
         $status = $this->parse_order_status($this->safe_string($order, 'status'));
         $meta = $this->safe_value($order, 'meta', array());
-        $postOnly = $this->safe_value($meta, 'post_only', false);
+        $postOnly = $this->safe_bool($meta, 'post_only', false);
         return $this->safe_order(array(
             'id' => $id,
             'clientOrderId' => null,
@@ -1167,7 +1167,7 @@ class hollaex extends Exchange {
             );
             $stopPrice = $this->safe_number_n($params, array( 'triggerPrice', 'stopPrice', 'stop' ));
             $meta = $this->safe_value($params, 'meta', array());
-            $exchangeSpecificParam = $this->safe_value($meta, 'post_only', false);
+            $exchangeSpecificParam = $this->safe_bool($meta, 'post_only', false);
             $isMarketOrder = $type === 'market';
             $postOnly = $this->is_post_only($isMarketOrder, $exchangeSpecificParam, $params);
             if (!$isMarketOrder) {

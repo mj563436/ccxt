@@ -1,8 +1,8 @@
 import Exchange from './abstract/okx.js';
-import { Int, OrderSide, OrderType, Trade, OHLCV, Order, FundingRateHistory, OrderRequest, FundingHistory, Str, Transaction, Ticker, OrderBook, Balances, Tickers, Market, Greeks, Strings, MarketInterface, Currency } from './base/types.js';
+import type { Int, OrderSide, OrderType, Trade, OHLCV, Order, FundingRateHistory, OrderRequest, FundingHistory, Str, Transaction, Ticker, OrderBook, Balances, Tickers, Market, Greeks, Strings, MarketInterface, Currency } from './base/types.js';
 /**
  * @class okx
- * @extends Exchange
+ * @augments Exchange
  */
 export default class okx extends Exchange {
     describe(): any;
@@ -10,7 +10,6 @@ export default class okx extends Exchange {
     convertToInstrumentType(type: any): string;
     convertExpireDate(date: any): string;
     createExpiredOptionMarket(symbol: any): MarketInterface;
-    market(symbol: any): any;
     safeMarket(marketId?: any, market?: any, delimiter?: any, marketType?: any): MarketInterface;
     fetchStatus(params?: {}): Promise<{
         updated: any;

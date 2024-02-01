@@ -9,6 +9,7 @@ use Exception; // a common import
 use ccxt\NotSupported;
 use ccxt\InvalidNonce;
 use React\Async;
+use React\Promise\PromiseInterface;
 
 class independentreserve extends \ccxt\async\independentreserve {
 
@@ -40,7 +41,7 @@ class independentreserve extends \ccxt\async\independentreserve {
         ));
     }
 
-    public function watch_trades(string $symbol, ?int $since = null, ?int $limit = null, $params = array ()) {
+    public function watch_trades(string $symbol, ?int $since = null, ?int $limit = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($symbol, $since, $limit, $params) {
             /**
              * get the list of most recent $trades for a particular $symbol
@@ -127,7 +128,7 @@ class independentreserve extends \ccxt\async\independentreserve {
         ), $market);
     }
 
-    public function watch_order_book(string $symbol, ?int $limit = null, $params = array ()) {
+    public function watch_order_book(string $symbol, ?int $limit = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($symbol, $limit, $params) {
             /**
              * watches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
@@ -188,7 +189,7 @@ class independentreserve extends \ccxt\async\independentreserve {
         $orderBook = $this->safe_value($message, 'Data', array());
         $messageHash = 'orderbook:' . $symbol . ':' . $depth;
         $subscription = $this->safe_value($client->subscriptions, $messageHash, array());
-        $receivedSnapshot = $this->safe_value($subscription, 'receivedSnapshot', false);
+        $receivedSnapshot = $this->safe_bool($subscription, 'receivedSnapshot', false);
         $timestamp = $this->safe_integer($message, 'Time');
         $storedOrderBook = $this->safe_value($this->orderbooks, $symbol);
         if ($storedOrderBook === null) {

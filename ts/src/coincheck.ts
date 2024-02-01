@@ -5,13 +5,13 @@ import Exchange from './abstract/coincheck.js';
 import { BadSymbol, ExchangeError, AuthenticationError } from './base/errors.js';
 import { TICK_SIZE } from './base/functions/number.js';
 import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
-import { Balances, Currency, Int, Market, Order, OrderBook, OrderSide, OrderType, Str, Ticker, Trade, Transaction } from './base/types.js';
+import type { Balances, Currency, Int, Market, Order, OrderBook, OrderSide, OrderType, Str, Ticker, Trade, Transaction } from './base/types.js';
 
 //  ---------------------------------------------------------------------------
 
 /**
  * @class coincheck
- * @extends Exchange
+ * @augments Exchange
  */
 export default class coincheck extends Exchange {
     describe () {
@@ -67,6 +67,7 @@ export default class coincheck extends Exchange {
                 'setLeverage': false,
                 'setMarginMode': false,
                 'setPositionMode': false,
+                'ws': true,
             },
             'urls': {
                 'logo': 'https://user-images.githubusercontent.com/51840849/87182088-1d6d6380-c2ec-11ea-9c64-8ab9f9b289f5.jpg',
@@ -845,7 +846,7 @@ export default class coincheck extends Exchange {
         //     {"success":false,"error":"disabled API Key"}'
         //     {"success":false,"error":"invalid authentication"}
         //
-        const success = this.safeValue (response, 'success', true);
+        const success = this.safeBool (response, 'success', true);
         if (!success) {
             const error = this.safeString (response, 'error');
             const feedback = this.id + ' ' + this.json (response);

@@ -17,6 +17,7 @@ class p2b extends Exchange {
             'countries' => array( 'LT' ),
             'rateLimit' => 100,
             'version' => 'v2',
+            'pro' => true,
             'has' => array(
                 'CORS' => null,
                 'spot' => true,
@@ -530,7 +531,6 @@ class p2b extends Exchange {
          * @param {int} [$since] timestamp in ms of the earliest trade to fetch
          * @param {int} [$limit] 1-100, default=50
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
-         *
          * @param {int} $params->lastId order id
          * @return {Trade[]} a list of ~@link https://docs.ccxt.com/#/?id=public-trades trade structures~
          */
@@ -648,7 +648,6 @@ class p2b extends Exchange {
          * @param {int} [$since] timestamp in ms of the earliest candle to fetch
          * @param {int} [$limit] 1-500, default=50
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
-         *
          * @param {int} [$params->offset] default=0, with this value the last candles are returned
          * @return {int[][]} A list of candles ordered, open, high, low, close, volume
          */

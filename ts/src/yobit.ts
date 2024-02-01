@@ -6,13 +6,13 @@ import { ExchangeError, ArgumentsRequired, ExchangeNotAvailable, InvalidNonce, I
 import { Precise } from './base/Precise.js';
 import { TICK_SIZE } from './base/functions/number.js';
 import { sha512 } from './static_dependencies/noble-hashes/sha512.js';
-import { Balances, Dictionary, Int, Market, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade } from './base/types.js';
+import type { Balances, Dictionary, Int, Market, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade } from './base/types.js';
 
 // ---------------------------------------------------------------------------
 
 /**
  * @class yobit
- * @extends Exchange
+ * @augments Exchange
  */
 export default class yobit extends Exchange {
     describe () {
@@ -1307,7 +1307,7 @@ export default class yobit extends Exchange {
             //
             // To cover points 1, 2, 3 and 4 combined this handler should work like this:
             //
-            let success = this.safeValue (response, 'success', false);
+            let success = this.safeBool (response, 'success', false);
             if (typeof success === 'string') {
                 if ((success === 'true') || (success === '1')) {
                     success = true;

@@ -10,7 +10,7 @@ var sha512 = require('./static_dependencies/noble-hashes/sha512.js');
 //  ---------------------------------------------------------------------------
 /**
  * @class gemini
- * @extends Exchange
+ * @augments Exchange
  */
 class gemini extends gemini$1 {
     describe() {
@@ -301,6 +301,7 @@ class gemini extends gemini$1 {
         /**
          * @method
          * @name gemini#fetchCurrenciesFromWeb
+         * @ignore
          * @description fetches all available currencies on an exchange
          * @param {object} [params] extra parameters specific to the endpoint
          * @returns {object} an associative dictionary of currencies
@@ -511,7 +512,7 @@ class gemini extends gemini$1 {
             'post_only': true,
             'limit_only': true,
         };
-        return this.safeValue(statuses, status, true);
+        return this.safeBool(statuses, status, true);
     }
     async fetchUSDTMarkets(params = {}) {
         // these markets can't be scrapped and fetchMarketsFrom api does an extra call
@@ -550,7 +551,7 @@ class gemini extends gemini$1 {
             result[marketId] = this.parseMarket(market);
         }
         const options = this.safeValue(this.options, 'fetchMarketsFromAPI', {});
-        const fetchDetailsForAllSymbols = this.safeValue(options, 'fetchDetailsForAllSymbols', false);
+        const fetchDetailsForAllSymbols = this.safeBool(options, 'fetchDetailsForAllSymbols', false);
         const fetchDetailsForMarketIds = this.safeValue(options, 'fetchDetailsForMarketIds', []);
         let promises = [];
         let marketIds = [];
@@ -950,7 +951,7 @@ class gemini extends gemini$1 {
             'symbol': market['id'],
         };
         if (limit !== undefined) {
-            request['limit_trades'] = limit;
+            request['limit_trades'] = Math.min(limit, 500);
         }
         if (since !== undefined) {
             request['timestamp'] = since;
@@ -1367,7 +1368,7 @@ class gemini extends gemini$1 {
                     request['options'] = ['maker-or-cancel'];
                 }
             }
-            const postOnly = this.safeValue(params, 'postOnly', false);
+            const postOnly = this.safeBool(params, 'postOnly', false);
             params = this.omit(params, 'postOnly');
             if (postOnly) {
                 request['options'] = ['maker-or-cancel'];

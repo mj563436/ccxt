@@ -409,7 +409,7 @@ class wavesexchange(Exchange, ImplicitAPI):
         #        "matcherFee":"4077612"
         #     }
         #  }
-        isDiscountFee = self.safe_value(params, 'isDiscountFee', False)
+        isDiscountFee = self.safe_bool(params, 'isDiscountFee', False)
         mode = None
         if isDiscountFee:
             mode = self.safe_value(response, 'discount')
@@ -1544,7 +1544,7 @@ class wavesexchange(Exchange, ImplicitAPI):
         fetches information on multiple closed orders made by the user
         :param str symbol: unified market symbol of the market orders were made in
         :param int [since]: the earliest time in ms to fetch orders for
-        :param int [limit]: the maximum number of  orde structures to retrieve
+        :param int [limit]: the maximum number of order structures to retrieve
         :param dict [params]: extra parameters specific to the exchange API endpoint
         :returns Order[]: a list of `order structures <https://docs.ccxt.com/#/?id=order-structure>`
         """
@@ -1974,7 +1974,7 @@ class wavesexchange(Exchange, ImplicitAPI):
             'priceAsset': market['quoteId'],
         }
         if limit is not None:
-            request['limit'] = limit
+            request['limit'] = min(limit, 100)
         if since is not None:
             request['timeStart'] = since
         response = await self.publicGetTransactionsExchange(request)
@@ -2277,7 +2277,7 @@ class wavesexchange(Exchange, ImplicitAPI):
 
     def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
         errorCode = self.safe_string(response, 'error')
-        success = self.safe_value(response, 'success', True)
+        success = self.safe_bool(response, 'success', True)
         Exception = self.safe_value(self.exceptions, errorCode)
         if Exception is not None:
             messageInner = self.safe_string(response, 'message')

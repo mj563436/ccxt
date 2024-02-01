@@ -2,11 +2,11 @@ import Exchange from './abstract/timex.js';
 import { ExchangeError, PermissionDenied, ExchangeNotAvailable, InsufficientFunds, OrderNotFound, InvalidOrder, RateLimitExceeded, NotSupported, BadRequest, AuthenticationError, ArgumentsRequired } from './base/errors.js';
 import { Precise } from './base/Precise.js';
 import { TICK_SIZE } from './base/functions/number.js';
-import { Balances, Currency, Int, Market, OHLCV, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade, Transaction } from './base/types.js';
+import type { Balances, Currency, Int, Market, OHLCV, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade, Transaction } from './base/types.js';
 
 /**
  * @class timex
- * @extends Exchange
+ * @augments Exchange
  */
 export default class timex extends Exchange {
     describe () {
@@ -94,7 +94,7 @@ export default class timex extends Exchange {
                     'rest': 'https://plasma-relay-backend.timex.io',
                 },
                 'www': 'https://timex.io',
-                'doc': 'https://docs.timex.io',
+                'doc': 'https://plasma-relay-backend.timex.io/swagger-ui/index.html',
                 'referral': 'https://timex.io/?refcode=1x27vNkTbP1uwkCck',
             },
             'api': {
@@ -733,7 +733,7 @@ export default class timex extends Exchange {
         const market = this.market (symbol);
         const uppercaseSide = side.toUpperCase ();
         let uppercaseType = type.toUpperCase ();
-        const postOnly = this.safeValue (params, 'postOnly', false);
+        const postOnly = this.safeBool (params, 'postOnly', false);
         if (postOnly) {
             uppercaseType = 'POST_ONLY';
             params = this.omit (params, [ 'postOnly' ]);
@@ -1013,7 +1013,7 @@ export default class timex extends Exchange {
          * @description fetches information on multiple closed orders made by the user
          * @param {string} symbol unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
-         * @param {int} [limit] the maximum number of  orde structures to retrieve
+         * @param {int} [limit] the maximum number of order structures to retrieve
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {Order[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
          */

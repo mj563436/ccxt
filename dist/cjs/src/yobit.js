@@ -10,7 +10,7 @@ var sha512 = require('./static_dependencies/noble-hashes/sha512.js');
 // ---------------------------------------------------------------------------
 /**
  * @class yobit
- * @extends Exchange
+ * @augments Exchange
  */
 class yobit extends yobit$1 {
     describe() {
@@ -1288,7 +1288,7 @@ class yobit extends yobit$1 {
             //
             // To cover points 1, 2, 3 and 4 combined this handler should work like this:
             //
-            let success = this.safeValue(response, 'success', false);
+            let success = this.safeBool(response, 'success', false);
             if (typeof success === 'string') {
                 if ((success === 'true') || (success === '1')) {
                     success = true;

@@ -45,7 +45,11 @@ class poloniexfutures(Exchange, ImplicitAPI):
                 'fetchBalance': True,
                 'fetchClosedOrders': True,
                 'fetchCurrencies': False,
+                'fetchDepositAddress': False,
+                'fetchDepositAddresses': False,
+                'fetchDepositAddressesByNetwork': False,
                 'fetchFundingRate': True,
+                'fetchFundingRateHistory': False,
                 'fetchL3OrderBook': True,
                 'fetchMarkets': True,
                 'fetchMyTrades': True,
@@ -829,7 +833,7 @@ class poloniexfutures(Exchange, ImplicitAPI):
                 request['price'] = self.price_to_precision(symbol, price)
             if timeInForce is not None:
                 request['timeInForce'] = timeInForce
-        postOnly = self.safe_value(params, 'postOnly', False)
+        postOnly = self.safe_bool(params, 'postOnly', False)
         hidden = self.safe_value(params, 'hidden')
         if postOnly and (hidden is not None):
             raise BadRequest(self.id + ' createOrder() does not support the postOnly parameter together with a hidden parameter')
@@ -1139,9 +1143,13 @@ class poloniexfutures(Exchange, ImplicitAPI):
         request = {}
         if symbol is not None:
             request['symbol'] = self.market_id(symbol)
-        stop = self.safe_value(params, 'stop')
-        method = 'privateDeleteStopOrders' if stop else 'privateDeleteOrders'
-        response = await getattr(self, method)(self.extend(request, params))
+        stop = self.safe_value_2(params, 'stop', 'trigger')
+        params = self.omit(params, ['stop', 'trigger'])
+        response = None
+        if stop:
+            response = await self.privateDeleteStopOrders(self.extend(request, params))
+        else:
+            response = await self.privateDeleteOrders(self.extend(request, params))
         #
         #   {
         #       "code": "200000",
@@ -1200,9 +1208,9 @@ class poloniexfutures(Exchange, ImplicitAPI):
         :returns: An `array of order structures <https://docs.ccxt.com/#/?id=order-structure>`
         """
         await self.load_markets()
-        stop = self.safe_value(params, 'stop')
+        stop = self.safe_value_2(params, 'stop', 'trigger')
         until = self.safe_integer_2(params, 'until', 'till')
-        params = self.omit(params, ['stop', 'until', 'till'])
+        params = self.omit(params, ['triger', 'stop', 'until', 'till'])
         if status == 'closed':
             status = 'done'
         request = {}
@@ -1218,8 +1226,11 @@ class poloniexfutures(Exchange, ImplicitAPI):
             request['startAt'] = since
         if until is not None:
             request['endAt'] = until
-        method = 'privateGetStopOrders' if stop else 'privateGetOrders'
-        response = await getattr(self, method)(self.extend(request, params))
+        response = None
+        if stop:
+            response = await self.privateGetStopOrders(self.extend(request, params))
+        else:
+            response = await self.privateGetOrders(self.extend(request, params))
         #
         #    {
         #        "code": "200000",
@@ -1301,7 +1312,7 @@ class poloniexfutures(Exchange, ImplicitAPI):
         :see: https://futures-docs.poloniex.com/#get-untriggered-stop-order-list
         :param str symbol: unified market symbol of the market orders were made in
         :param int [since]: the earliest time in ms to fetch orders for
-        :param int [limit]: the maximum number of  orde structures to retrieve
+        :param int [limit]: the maximum number of order structures to retrieve
         :param dict [params]: extra parameters specific to the exchange API endpoint
         :param int [params.till]: end time in ms
         :param str [params.side]: buy or sell
@@ -1321,17 +1332,17 @@ class poloniexfutures(Exchange, ImplicitAPI):
         """
         await self.load_markets()
         request = {}
-        method = 'privateGetOrdersOrderId'
+        response = None
         if id is None:
             clientOrderId = self.safe_string_2(params, 'clientOid', 'clientOrderId')
             if clientOrderId is None:
                 raise InvalidOrder(self.id + ' fetchOrder() requires parameter id or params.clientOid')
             request['clientOid'] = clientOrderId
-            method = 'privateGetOrdersByClientOid'
             params = self.omit(params, ['clientOid', 'clientOrderId'])
+            response = await self.privateGetClientOrderIdClientOid(self.extend(request, params))
         else:
             request['order-id'] = id
-        response = await getattr(self, method)(self.extend(request, params))
+            response = await self.privateGetOrdersOrderId(self.extend(request, params))
         #
         #    {
         #        "code": "200000",
@@ -1467,8 +1478,8 @@ class poloniexfutures(Exchange, ImplicitAPI):
         # precision reported by their api is 8 d.p.
         # average = Precise.string_div(rawCost, Precise.string_mul(filled, market['contractSize']))
         # bool
-        isActive = self.safe_value(order, 'isActive', False)
-        cancelExist = self.safe_value(order, 'cancelExist', False)
+        isActive = self.safe_bool(order, 'isActive', False)
+        cancelExist = self.safe_bool(order, 'cancelExist', False)
         status = 'open' if isActive else 'closed'
         id = self.safe_string(order, 'id')
         if 'cancelledOrderIds' in order:
@@ -1638,7 +1649,7 @@ class poloniexfutures(Exchange, ImplicitAPI):
         version = self.safe_string(params, 'version', defaultVersion)
         tail = '/api/' + version + '/' + self.implode_params(path, params)
         url += tail
-        query = self.omit(params, path)
+        query = self.omit(params, self.extract_params(path))
         queryLength = query
         if api == 'public':
             if queryLength:

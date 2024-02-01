@@ -61,6 +61,8 @@ class ascendex extends Exchange {
                 'fetchMarkets' => true,
                 'fetchMarkOHLCV' => false,
                 'fetchOHLCV' => true,
+                'fetchOpenInterest' => false,
+                'fetchOpenInterestHistory' => false,
                 'fetchOpenOrders' => true,
                 'fetchOrder' => true,
                 'fetchOrderBook' => true,
@@ -613,7 +615,7 @@ class ascendex extends Exchange {
                 $symbol = $base . '/' . $quote . ':' . $settle;
             }
             $fee = $this->safe_number($market, 'commissionReserveRate');
-            $marginTradable = $this->safe_value($market, 'marginTradable', false);
+            $marginTradable = $this->safe_bool($market, 'marginTradable', false);
             $result[] = array(
                 'id' => $id,
                 'symbol' => $symbol,
@@ -795,7 +797,7 @@ class ascendex extends Exchange {
 
     public function fetch_balance($params = array ()): array {
         /**
-         * $query for balance and get the amount of funds available for trading or funds locked in orders
+         * query for balance and get the amount of funds available for trading or funds locked in orders
          * @see https://ascendex.github.io/ascendex-pro-api/#cash-$account-balance
          * @see https://ascendex.github.io/ascendex-pro-api/#margin-$account-balance
          * @see https://ascendex.github.io/ascendex-futures-pro-api-v2/#position
@@ -804,12 +806,14 @@ class ascendex extends Exchange {
          */
         $this->load_markets();
         $this->load_accounts();
-        $query = null;
         $marketType = null;
-        list($marketType, $query) = $this->handle_market_type_and_params('fetchBalance', null, $params);
-        $isMargin = $this->safe_value($params, 'margin', false);
-        $marketType = $isMargin ? 'margin' : $marketType;
-        $query = $this->omit($query, 'margin');
+        $marginMode = null;
+        list($marketType, $params) = $this->handle_market_type_and_params('fetchBalance', null, $params);
+        list($marginMode, $params) = $this->handle_margin_mode_and_params('fetchBalance', $params);
+        $isMargin = $this->safe_bool($params, 'margin', false);
+        $isCross = $marginMode === 'cross';
+        $marketType = ($isMargin || $isCross) ? 'margin' : $marketType;
+        $params = $this->omit($params, 'margin');
         $accountsByType = $this->safe_value($this->options, 'accountsByType', array());
         $accountCategory = $this->safe_string($accountsByType, $marketType, 'cash');
         $account = $this->safe_value($this->accounts, 0, array());
@@ -817,14 +821,17 @@ class ascendex extends Exchange {
         $request = array(
             'account-group' => $accountGroup,
         );
+        if (($marginMode === 'isolated') && ($marketType !== 'swap')) {
+            throw new BadRequest($this->id . ' does not supported isolated margin trading');
+        }
         if (($accountCategory === 'cash') || ($accountCategory === 'margin')) {
             $request['account-category'] = $accountCategory;
         }
         $response = null;
         if (($marketType === 'spot') || ($marketType === 'margin')) {
-            $response = $this->v1PrivateAccountCategoryGetBalance (array_merge($request, $query));
+            $response = $this->v1PrivateAccountCategoryGetBalance (array_merge($request, $params));
         } elseif ($marketType === 'swap') {
-            $response = $this->v2PrivateAccountGroupGetFuturesPosition (array_merge($request, $query));
+            $response = $this->v2PrivateAccountGroupGetFuturesPosition (array_merge($request, $params));
         } else {
             throw new NotSupported($this->id . ' fetchBalance() is not currently supported for ' . $marketType . ' markets');
         }
@@ -1155,7 +1162,7 @@ class ascendex extends Exchange {
         $timestamp = $this->safe_integer($trade, 'ts');
         $priceString = $this->safe_string_2($trade, 'price', 'p');
         $amountString = $this->safe_string($trade, 'q');
-        $buyerIsMaker = $this->safe_value($trade, 'bm', false);
+        $buyerIsMaker = $this->safe_bool($trade, 'bm', false);
         $side = $buyerIsMaker ? 'sell' : 'buy';
         $market = $this->safe_market(null, $market);
         return $this->safe_trade(array(
@@ -1498,7 +1505,7 @@ class ascendex extends Exchange {
         $isLimitOrder = (($type === 'limit') || ($type === 'stop_limit'));
         $timeInForce = $this->safe_string($params, 'timeInForce');
         $postOnly = $this->is_post_only($isMarketOrder, false, $params);
-        $reduceOnly = $this->safe_value($params, 'reduceOnly', false);
+        $reduceOnly = $this->safe_bool($params, 'reduceOnly', false);
         $stopPrice = $this->safe_value_2($params, 'triggerPrice', 'stopPrice');
         if ($isLimitOrder) {
             $request['orderPrice'] = $this->price_to_precision($symbol, $price);
@@ -1643,7 +1650,7 @@ class ascendex extends Exchange {
          * create a list of trade $orders
          * @see https://ascendex.github.io/ascendex-pro-api/#place-batch-$orders
          * @see https://ascendex.github.io/ascendex-futures-pro-api-v2/#place-batch-$orders
-         * @param {array} $orders list of $orders to create, each object should contain the parameters required by createOrder, namely $symbol, $type, $side, $amount, $price and $params
+         * @param {Array} $orders list of $orders to create, each object should contain the parameters required by createOrder, namely $symbol, $type, $side, $amount, $price and $params
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
          * @param {string} [$params->timeInForce] "GTC", "IOC", "FOK", or "PO"
          * @param {bool} [$params->postOnly] true or false
@@ -1961,7 +1968,7 @@ class ascendex extends Exchange {
          * @see https://ascendex.github.io/ascendex-futures-pro-api-v2/#list-current-history-orders
          * @param {string} $symbol unified $market $symbol of the $market orders were made in
          * @param {int} [$since] the earliest time in ms to fetch orders for
-         * @param {int} [$limit] the maximum number of  orde structures to retrieve
+         * @param {int} [$limit] the maximum number of order structures to retrieve
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
          * @param {int} [$params->until] the latest time in ms to fetch orders for
          * @return {Order[]} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
@@ -3112,7 +3119,7 @@ class ascendex extends Exchange {
         //    array( "code" => "0" )
         //
         $transferOptions = $this->safe_value($this->options, 'transfer', array());
-        $fillResponseFromRequest = $this->safe_value($transferOptions, 'fillResponseFromRequest', true);
+        $fillResponseFromRequest = $this->safe_bool($transferOptions, 'fillResponseFromRequest', true);
         $transfer = $this->parse_transfer($response, $currency);
         if ($fillResponseFromRequest) {
             $transfer['fromAccount'] = $fromAccount;

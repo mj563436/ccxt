@@ -6,13 +6,13 @@ import { ExchangeError, InvalidOrder, OrderNotFound, RateLimitExceeded, Insuffic
 import { Precise } from './base/Precise.js';
 import { TICK_SIZE } from './base/functions/number.js';
 import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
-import { Balances, Currency, Int, Market, Order, OrderBook, OrderSide, OrderType, Str, Ticker, Trade, Transaction } from './base/types.js';
+import type { Balances, Currency, Int, Market, Order, OrderBook, OrderSide, OrderType, Str, Ticker, Trade, Transaction } from './base/types.js';
 
 //  ---------------------------------------------------------------------------
 
 /**
  * @class coinmate
- * @extends Exchange
+ * @augments Exchange
  */
 export default class coinmate extends Exchange {
     describe () {
@@ -552,7 +552,7 @@ export default class coinmate extends Exchange {
         //
         const data = this.safeValue (response, 'data');
         const transaction = this.parseTransaction (data, currency);
-        const fillResponseFromRequest = this.safeValue (withdrawOptions, 'fillResponseFromRequest', true);
+        const fillResponseFromRequest = this.safeBool (withdrawOptions, 'fillResponseFromRequest', true);
         if (fillResponseFromRequest) {
             transaction['amount'] = amount;
             transaction['currency'] = code;

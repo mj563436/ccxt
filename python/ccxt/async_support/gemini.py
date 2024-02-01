@@ -312,6 +312,7 @@ class gemini(Exchange, ImplicitAPI):
 
     async def fetch_currencies_from_web(self, params={}):
         """
+         * @ignore
         fetches all available currencies on an exchange
         :param dict [params]: extra parameters specific to the endpoint
         :returns dict: an associative dictionary of currencies
@@ -512,7 +513,7 @@ class gemini(Exchange, ImplicitAPI):
             'post_only': True,
             'limit_only': True,
         }
-        return self.safe_value(statuses, status, True)
+        return self.safe_bool(statuses, status, True)
 
     async def fetch_usdt_markets(self, params={}):
         # these markets can't be scrapped and fetchMarketsFrom api does an extra call
@@ -548,7 +549,7 @@ class gemini(Exchange, ImplicitAPI):
             }
             result[marketId] = self.parse_market(market)
         options = self.safe_value(self.options, 'fetchMarketsFromAPI', {})
-        fetchDetailsForAllSymbols = self.safe_value(options, 'fetchDetailsForAllSymbols', False)
+        fetchDetailsForAllSymbols = self.safe_bool(options, 'fetchDetailsForAllSymbols', False)
         fetchDetailsForMarketIds = self.safe_value(options, 'fetchDetailsForMarketIds', [])
         promises = []
         marketIds = []
@@ -928,7 +929,7 @@ class gemini(Exchange, ImplicitAPI):
             'symbol': market['id'],
         }
         if limit is not None:
-            request['limit_trades'] = limit
+            request['limit_trades'] = min(limit, 500)
         if since is not None:
             request['timestamp'] = since
         response = await self.publicGetV1TradesSymbol(self.extend(request, params))
@@ -1313,7 +1314,7 @@ class gemini(Exchange, ImplicitAPI):
                     request['options'] = ['fill-or-kill']
                 elif timeInForce == 'PO':
                     request['options'] = ['maker-or-cancel']
-            postOnly = self.safe_value(params, 'postOnly', False)
+            postOnly = self.safe_bool(params, 'postOnly', False)
             params = self.omit(params, 'postOnly')
             if postOnly:
                 request['options'] = ['maker-or-cancel']

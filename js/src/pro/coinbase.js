@@ -6,7 +6,7 @@
 
 //  ---------------------------------------------------------------------------
 import coinbaseRest from '../coinbase.js';
-import { ArgumentsRequired, ExchangeError } from '../base/errors.js';
+import { ExchangeError } from '../base/errors.js';
 import { ArrayCacheBySymbolById } from '../base/ws/Cache.js';
 import { sha256 } from '../static_dependencies/noble-hashes/sha256.js';
 //  ---------------------------------------------------------------------------
@@ -113,11 +113,14 @@ export default class coinbase extends coinbaseRest {
          * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}
          */
         if (symbols === undefined) {
-            throw new ArgumentsRequired(this.id + ' watchTickers requires a symbols argument');
+            symbols = this.symbols;
         }
         const name = 'ticker_batch';
         const tickers = await this.subscribe(name, symbols, params);
-        return tickers;
+        if (this.newUpdates) {
+            return tickers;
+        }
+        return this.tickers;
     }
     handleTickers(client, message) {
         //
@@ -270,7 +273,7 @@ export default class coinbase extends coinbaseRest {
          * @see https://docs.cloud.coinbase.com/advanced-trade-api/docs/ws-channels#user-channel
          * @param {string} [symbol] unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
-         * @param {int} [limit] the maximum number of  orde structures to retrieve
+         * @param {int} [limit] the maximum number of order structures to retrieve
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
          */

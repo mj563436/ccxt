@@ -10,7 +10,7 @@ var sha256 = require('./static_dependencies/noble-hashes/sha256.js');
 //  ---------------------------------------------------------------------------
 /**
  * @class bitso
- * @extends Exchange
+ * @augments Exchange
  */
 class bitso extends bitso$1 {
     describe() {
@@ -1726,7 +1726,7 @@ class bitso extends bitso$1 {
             //
             //     {"success":false,"error":{"code":104,"message":"Cannot perform request - nonce must be higher than 1520307203724237"}}
             //
-            let success = this.safeValue(response, 'success', false);
+            let success = this.safeBool(response, 'success', false);
             if (typeof success === 'string') {
                 if ((success === 'true') || (success === '1')) {
                     success = true;

@@ -13,7 +13,7 @@ import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
 //  ---------------------------------------------------------------------------
 /**
  * @class bitmex
- * @extends Exchange
+ * @augments Exchange
  */
 export default class bitmex extends Exchange {
     describe() {
@@ -41,8 +41,11 @@ export default class bitmex extends Exchange {
                 'cancelAllOrders': true,
                 'cancelOrder': true,
                 'cancelOrders': true,
+                'closeAllPositions': false,
+                'closePosition': true,
                 'createOrder': true,
                 'createReduceOnlyOrder': true,
+                'createTrailingAmountOrder': true,
                 'editOrder': true,
                 'fetchBalance': true,
                 'fetchClosedOrders': true,
@@ -101,7 +104,7 @@ export default class bitmex extends Exchange {
                     'public': 'https://testnet.bitmex.com',
                     'private': 'https://testnet.bitmex.com',
                 },
-                'logo': 'https://user-images.githubusercontent.com/1294454/27766319-f653c6e6-5ed4-11e7-933d-f0bc3699ae8f.jpg',
+                'logo': 'https://github.com/ccxt/ccxt/assets/43336371/cea9cfe5-c57e-4b84-b2ac-77b960b04445',
                 'api': {
                     'public': 'https://www.bitmex.com',
                     'private': 'https://www.bitmex.com',
@@ -112,7 +115,10 @@ export default class bitmex extends Exchange {
                     'https://github.com/BitMEX/api-connectors/tree/master/official-http',
                 ],
                 'fees': 'https://www.bitmex.com/app/fees',
-                'referral': 'https://www.bitmex.com/register/upZpOX',
+                'referral': {
+                    'url': 'https://www.bitmex.com/app/register/NZTR1q',
+                    'discount': 0.1,
+                },
             },
             'api': {
                 'public': {
@@ -124,6 +130,7 @@ export default class bitmex extends Exchange {
                         'chat/connected': 5,
                         'chat/pinned': 5,
                         'funding': 5,
+                        'guild': 5,
                         'instrument': 5,
                         'instrument/active': 5,
                         'instrument/activeAndIndices': 5,
@@ -152,6 +159,7 @@ export default class bitmex extends Exchange {
                 },
                 'private': {
                     'get': {
+                        'address': 5,
                         'apiKey': 5,
                         'execution': 5,
                         'execution/tradeHistory': 5,
@@ -164,21 +172,33 @@ export default class bitmex extends Exchange {
                         'user/affiliateStatus': 5,
                         'user/checkReferralCode': 5,
                         'user/commission': 5,
+                        'user/csa': 5,
                         'user/depositAddress': 5,
                         'user/executionHistory': 5,
+                        'user/getWalletTransferAccounts': 5,
                         'user/margin': 5,
                         'user/quoteFillRatio': 5,
                         'user/quoteValueRatio': 5,
+                        'user/staking': 5,
+                        'user/staking/instruments': 5,
+                        'user/staking/tiers': 5,
                         'user/tradingVolume': 5,
+                        'user/unstakingRequests': 5,
                         'user/wallet': 5,
                         'user/walletHistory': 5,
                         'user/walletSummary': 5,
+                        'userAffiliates': 5,
                         'userEvent': 5,
                     },
                     'post': {
+                        'address': 5,
                         'chat': 5,
+                        'guild': 5,
+                        'guild/archive': 5,
                         'guild/join': 5,
+                        'guild/kick': 5,
                         'guild/leave': 5,
+                        'guild/sharesTrades': 5,
                         'order': 1,
                         'order/cancelAllAfter': 5,
                         'order/closePosition': 5,
@@ -186,6 +206,7 @@ export default class bitmex extends Exchange {
                         'position/leverage': 1,
                         'position/riskLimit': 5,
                         'position/transferMargin': 1,
+                        'user/addSubaccount': 5,
                         'user/cancelWithdrawal': 5,
                         'user/communicationToken': 5,
                         'user/confirmEmail': 5,
@@ -193,13 +214,18 @@ export default class bitmex extends Exchange {
                         'user/logout': 5,
                         'user/preferences': 5,
                         'user/requestWithdrawal': 5,
+                        'user/unstakingRequests': 5,
+                        'user/updateSubaccount': 5,
+                        'user/walletTransfer': 5,
                     },
                     'put': {
+                        'guild': 5,
                         'order': 1,
                     },
                     'delete': {
                         'order': 1,
                         'order/all': 1,
+                        'user/unstakingRequests': 5,
                     },
                 },
             },
@@ -316,8 +342,8 @@ export default class bitmex extends Exchange {
                 const network = this.networkIdToCode(networkId);
                 const withdrawalFeeRaw = this.safeString(chain, 'withdrawalFee');
                 const withdrawalFee = this.parseNumber(Precise.stringMul(withdrawalFeeRaw, precisionString));
-                const isDepositEnabled = this.safeValue(chain, 'depositEnabled', false);
-                const isWithdrawEnabled = this.safeValue(chain, 'withdrawalEnabled', false);
+                const isDepositEnabled = this.safeBool(chain, 'depositEnabled', false);
+                const isWithdrawEnabled = this.safeBool(chain, 'withdrawalEnabled', false);
                 const active = (isDepositEnabled && isWithdrawEnabled);
                 if (isDepositEnabled) {
                     depositEnabled = true;
@@ -873,7 +899,7 @@ export default class bitmex extends Exchange {
          * @description fetches information on multiple orders made by the user
          * @param {string} symbol unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
-         * @param {int} [limit] the maximum number of  orde structures to retrieve
+         * @param {int} [limit] the maximum number of order structures to retrieve
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @param {int} [params.until] the earliest time in ms to fetch orders for
          * @param {boolean} [params.paginate] default false, when true will automatically paginate by calling this endpoint multiple times. See in the docs all the [availble parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params)
@@ -937,7 +963,7 @@ export default class bitmex extends Exchange {
          * @description fetches information on multiple closed orders made by the user
          * @param {string} symbol unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
-         * @param {int} [limit] the maximum number of  orde structures to retrieve
+         * @param {int} [limit] the maximum number of order structures to retrieve
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {Order[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
@@ -1480,8 +1506,8 @@ export default class bitmex extends Exchange {
             if (fetchOHLCVOpenTimestamp) {
                 timestamp = this.sum(timestamp, duration);
             }
-            const ymdhms = this.ymdhms(timestamp);
-            request['startTime'] = ymdhms; // starting date filter for results
+            const startTime = this.iso8601(timestamp);
+            request['startTime'] = startTime; // starting date filter for results
         }
         else {
             request['reverse'] = true;
@@ -1587,13 +1613,11 @@ export default class bitmex extends Exchange {
         let fee = undefined;
         const feeCostString = this.numberToString(this.convertFromRawCost(symbol, this.safeString(trade, 'execComm')));
         if (feeCostString !== undefined) {
-            const currencyId = this.safeString(trade, 'settlCurrency');
-            const feeCurrencyCode = this.safeCurrencyCode(currencyId);
-            const feeRateString = this.safeString(trade, 'commission');
+            const currencyId = this.safeString2(trade, 'settlCurrency', 'currency');
             fee = {
-                'cost': Precise.stringAbs(feeCostString),
-                'currency': feeCurrencyCode,
-                'rate': Precise.stringAbs(feeRateString),
+                'cost': feeCostString,
+                'currency': this.safeCurrencyCode(currencyId),
+                'rate': this.safeString(trade, 'commission'),
             };
         }
         // Trade or Funding
@@ -1695,7 +1719,7 @@ export default class bitmex extends Exchange {
             isInverse = (defaultSubType === 'inverse');
         }
         else {
-            isInverse = this.safeValue(market, 'inverse', false);
+            isInverse = this.safeBool(market, 'inverse', false);
         }
         if (isInverse) {
             cost = this.convertFromRawQuantity(symbol, qty);
@@ -1828,14 +1852,15 @@ export default class bitmex extends Exchange {
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @param {object} [params.triggerPrice] the price at which a trigger order is triggered at
          * @param {object} [params.triggerDirection] the direction whenever the trigger happens with relation to price - 'above' or 'below'
+         * @param {float} [params.trailingAmount] the quote amount to trail away from the current market price
          * @returns {object} an [order structure]{@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure}
          */
         await this.loadMarkets();
         const market = this.market(symbol);
-        const orderType = this.capitalize(type);
+        let orderType = this.capitalize(type);
         const reduceOnly = this.safeValue(params, 'reduceOnly');
         if (reduceOnly !== undefined) {
-            if ((market['type'] !== 'swap') && (market['type'] !== 'future')) {
+            if ((!market['swap']) && (!market['future'])) {
                 throw new InvalidOrder(this.id + ' createOrder() does not support reduceOnly for ' + market['type'] + ' orders, reduceOnly orders are supported for swap and future markets only');
             }
         }
@@ -1848,44 +1873,54 @@ export default class bitmex extends Exchange {
             'ordType': orderType,
             'text': brokerId,
         };
-        const customTriggerType = (orderType === 'Stop') || (orderType === 'StopLimit') || (orderType === 'MarketIfTouched') || (orderType === 'LimitIfTouched');
         // support for unified trigger format
         const triggerPrice = this.safeNumberN(params, ['triggerPrice', 'stopPx', 'stopPrice']);
-        if ((triggerPrice !== undefined) && !customTriggerType) {
-            request['stopPx'] = parseFloat(this.priceToPrecision(symbol, triggerPrice));
+        let trailingAmount = this.safeString2(params, 'trailingAmount', 'pegOffsetValue');
+        const isTriggerOrder = triggerPrice !== undefined;
+        const isTrailingAmountOrder = trailingAmount !== undefined;
+        if (isTriggerOrder || isTrailingAmountOrder) {
             const triggerDirection = this.safeString(params, 'triggerDirection');
-            params = this.omit(params, ['triggerPrice', 'stopPrice', 'stopPx', 'triggerDirection']);
             const triggerAbove = (triggerDirection === 'above');
-            this.checkRequiredArgument('createOrder', triggerDirection, 'triggerDirection', ['above', 'below']);
-            this.checkRequiredArgument('createOrder', side, 'side', ['buy', 'sell']);
+            if ((type === 'limit') || (type === 'market')) {
+                this.checkRequiredArgument('createOrder', triggerDirection, 'triggerDirection', ['above', 'below']);
+            }
             if (type === 'limit') {
-                request['price'] = parseFloat(this.priceToPrecision(symbol, price));
                 if (side === 'buy') {
-                    request['ordType'] = triggerAbove ? 'StopLimit' : 'LimitIfTouched';
+                    orderType = triggerAbove ? 'StopLimit' : 'LimitIfTouched';
                 }
                 else {
-                    request['ordType'] = triggerAbove ? 'LimitIfTouched' : 'StopLimit';
+                    orderType = triggerAbove ? 'LimitIfTouched' : 'StopLimit';
                 }
             }
             else if (type === 'market') {
                 if (side === 'buy') {
-                    request['ordType'] = triggerAbove ? 'Stop' : 'MarketIfTouched';
+                    orderType = triggerAbove ? 'Stop' : 'MarketIfTouched';
                 }
                 else {
-                    request['ordType'] = triggerAbove ? 'MarketIfTouched' : 'Stop';
+                    orderType = triggerAbove ? 'MarketIfTouched' : 'Stop';
                 }
             }
-        }
-        else if (customTriggerType) {
-            if (triggerPrice === undefined) {
-                // if exchange specific trigger types were provided
-                throw new ArgumentsRequired(this.id + ' createOrder() requires a triggerPrice (stopPx|stopPrice) parameter for the ' + orderType + ' order type');
+            if (isTrailingAmountOrder) {
+                const isStopSellOrder = (side === 'sell') && ((orderType === 'Stop') || (orderType === 'StopLimit'));
+                const isBuyIfTouchedOrder = (side === 'buy') && ((orderType === 'MarketIfTouched') || (orderType === 'LimitIfTouched'));
+                if (isStopSellOrder || isBuyIfTouchedOrder) {
+                    trailingAmount = '-' + trailingAmount;
+                }
+                request['pegOffsetValue'] = this.parseToNumeric(trailingAmount);
+                request['pegPriceType'] = 'TrailingStopPeg';
             }
-            params = this.omit(params, ['triggerPrice', 'stopPrice', 'stopPx']);
-            request['stopPx'] = parseFloat(this.priceToPrecision(symbol, triggerPrice));
+            else {
+                if (triggerPrice === undefined) {
+                    // if exchange specific trigger types were provided
+                    throw new ArgumentsRequired(this.id + ' createOrder() requires a triggerPrice (stopPx|stopPrice) parameter for the ' + orderType + ' order type');
+                }
+                request['stopPx'] = this.parseToNumeric(this.priceToPrecision(symbol, triggerPrice));
+            }
+            request['ordType'] = orderType;
+            params = this.omit(params, ['triggerPrice', 'stopPrice', 'stopPx', 'triggerDirection', 'trailingAmount']);
         }
         if ((orderType === 'Limit') || (orderType === 'StopLimit') || (orderType === 'LimitIfTouched')) {
-            request['price'] = parseFloat(this.priceToPrecision(symbol, price));
+            request['price'] = this.parseToNumeric(this.priceToPrecision(symbol, price));
         }
         const clientOrderId = this.safeString2(params, 'clOrdID', 'clientOrderId');
         if (clientOrderId !== undefined) {
@@ -1898,6 +1933,39 @@ export default class bitmex extends Exchange {
     async editOrder(id, symbol, type, side, amount = undefined, price = undefined, params = {}) {
         await this.loadMarkets();
         const request = {};
+        let trailingAmount = this.safeString2(params, 'trailingAmount', 'pegOffsetValue');
+        const isTrailingAmountOrder = trailingAmount !== undefined;
+        if (isTrailingAmountOrder) {
+            const triggerDirection = this.safeString(params, 'triggerDirection');
+            const triggerAbove = (triggerDirection === 'above');
+            if ((type === 'limit') || (type === 'market')) {
+                this.checkRequiredArgument('createOrder', triggerDirection, 'triggerDirection', ['above', 'below']);
+            }
+            let orderType = undefined;
+            if (type === 'limit') {
+                if (side === 'buy') {
+                    orderType = triggerAbove ? 'StopLimit' : 'LimitIfTouched';
+                }
+                else {
+                    orderType = triggerAbove ? 'LimitIfTouched' : 'StopLimit';
+                }
+            }
+            else if (type === 'market') {
+                if (side === 'buy') {
+                    orderType = triggerAbove ? 'Stop' : 'MarketIfTouched';
+                }
+                else {
+                    orderType = triggerAbove ? 'MarketIfTouched' : 'Stop';
+                }
+            }
+            const isStopSellOrder = (side === 'sell') && ((orderType === 'Stop') || (orderType === 'StopLimit'));
+            const isBuyIfTouchedOrder = (side === 'buy') && ((orderType === 'MarketIfTouched') || (orderType === 'LimitIfTouched'));
+            if (isStopSellOrder || isBuyIfTouchedOrder) {
+                trailingAmount = '-' + trailingAmount;
+            }
+            request['pegOffsetValue'] = this.parseToNumeric(trailingAmount);
+            params = this.omit(params, ['triggerDirection', 'trailingAmount']);
+        }
         const origClOrdID = this.safeString2(params, 'origClOrdID', 'clientOrderId');
         if (origClOrdID !== undefined) {
             request['origClOrdID'] = origClOrdID;
@@ -2248,7 +2316,7 @@ export default class bitmex extends Exchange {
         const datetime = this.safeString(position, 'timestamp');
         const crossMargin = this.safeValue(position, 'crossMargin');
         const marginMode = (crossMargin === true) ? 'cross' : 'isolated';
-        const notionalString = Precise.stringAbs(this.safeString(position, 'foreignNotional', 'homeNotional'));
+        const notionalString = Precise.stringAbs(this.safeString2(position, 'foreignNotional', 'homeNotional'));
         const settleCurrencyCode = this.safeString(market, 'settle');
         const maintenanceMargin = this.convertToRealAmount(settleCurrencyCode, this.safeString(position, 'maintMargin'));
         const unrealisedPnl = this.convertToRealAmount(settleCurrencyCode, this.safeString(position, 'unrealisedPnl'));
@@ -2358,7 +2426,7 @@ export default class bitmex extends Exchange {
             const item = response[i];
             const marketId = this.safeString(item, 'symbol');
             const market = this.safeMarket(marketId);
-            const swap = this.safeValue(market, 'swap', false);
+            const swap = this.safeBool(market, 'swap', false);
             if (swap) {
                 filteredResponse.push(item);
             }
@@ -2549,12 +2617,9 @@ export default class bitmex extends Exchange {
             throw new ArgumentsRequired(this.id + ' fetchDepositAddress requires params["network"]');
         }
         const currency = this.currency(code);
-        let currencyId = currency['id'];
-        const idLength = currencyId.length;
-        currencyId = currencyId.slice(0, idLength - 1) + currencyId.slice(idLength - 1, idLength).toLowerCase(); // make the last letter lowercase
         params = this.omit(params, 'network');
         const request = {
-            'currency': currencyId,
+            'currency': currency['id'],
             'network': this.networkCodeToId(networkCode, currency['code']),
         };
         const response = await this.privateGetUserDepositAddress(this.extend(request, params));

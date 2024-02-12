@@ -1890,7 +1890,7 @@ class kucoin extends Exchange {
         return array( $triggerPrice, $stopLossPrice, $takeProfitPrice );
     }
 
-    public function create_order(string $symbol, string $type, string $side, $amount, $price = null, $params = array ()) {
+    public function create_order(string $symbol, string $type, string $side, float $amount, ?float $price = null, $params = array ()) {
         return Async\async(function () use ($symbol, $type, $side, $amount, $price, $params) {
             /**
              * Create an order on the exchange
@@ -1974,7 +1974,7 @@ class kucoin extends Exchange {
         }) ();
     }
 
-    public function create_market_order_with_cost(string $symbol, string $side, $cost, $params = array ()) {
+    public function create_market_order_with_cost(string $symbol, string $side, float $cost, $params = array ()) {
         return Async\async(function () use ($symbol, $side, $cost, $params) {
             /**
              * create a market order by providing the $symbol, $side and $cost
@@ -1991,7 +1991,7 @@ class kucoin extends Exchange {
         }) ();
     }
 
-    public function create_market_buy_order_with_cost(string $symbol, $cost, $params = array ()) {
+    public function create_market_buy_order_with_cost(string $symbol, float $cost, $params = array ()) {
         return Async\async(function () use ($symbol, $cost, $params) {
             /**
              * create a market buy order by providing the $symbol and $cost
@@ -2006,7 +2006,7 @@ class kucoin extends Exchange {
         }) ();
     }
 
-    public function create_market_sell_order_with_cost(string $symbol, $cost, $params = array ()) {
+    public function create_market_sell_order_with_cost(string $symbol, float $cost, $params = array ()) {
         return Async\async(function () use ($symbol, $cost, $params) {
             /**
              * create a market sell order by providing the $symbol and $cost
@@ -2105,7 +2105,7 @@ class kucoin extends Exchange {
         }) ();
     }
 
-    public function create_order_request(string $symbol, string $type, string $side, $amount, $price = null, $params = array ()) {
+    public function create_order_request(string $symbol, string $type, string $side, float $amount, ?float $price = null, $params = array ()) {
         $market = $this->market($symbol);
         // required param, cannot be used twice
         $clientOrderId = $this->safe_string_2($params, 'clientOid', 'clientOrderId', $this->uuid());
@@ -2171,7 +2171,7 @@ class kucoin extends Exchange {
         return array_merge($request, $params);
     }
 
-    public function edit_order(string $id, $symbol, $type, $side, $amount = null, $price = null, $params = array ()) {
+    public function edit_order(string $id, string $symbol, string $type, string $side, ?float $amount = null, ?float $price = null, $params = array ()) {
         return Async\async(function () use ($id, $symbol, $type, $side, $amount, $price, $params) {
             /**
              * edit an order, kucoin currently only supports the modification of HF orders
@@ -3093,7 +3093,7 @@ class kucoin extends Exchange {
         }) ();
     }
 
-    public function withdraw(string $code, $amount, $address, $tag = null, $params = array ()) {
+    public function withdraw(string $code, float $amount, $address, $tag = null, $params = array ()) {
         return Async\async(function () use ($code, $amount, $address, $tag, $params) {
             /**
              * make a withdrawal
@@ -3601,7 +3601,7 @@ class kucoin extends Exchange {
         }) ();
     }
 
-    public function transfer(string $code, $amount, $fromAccount, $toAccount, $params = array ()) {
+    public function transfer(string $code, float $amount, string $fromAccount, string $toAccount, $params = array ()): PromiseInterface {
         return Async\async(function () use ($code, $amount, $fromAccount, $toAccount, $params) {
             /**
              * transfer $currency internally between wallets on the same account
@@ -4212,7 +4212,7 @@ class kucoin extends Exchange {
         );
     }
 
-    public function borrow_cross_margin(string $code, $amount, $params = array ()) {
+    public function borrow_cross_margin(string $code, float $amount, $params = array ()) {
         return Async\async(function () use ($code, $amount, $params) {
             /**
              * create a loan to borrow margin
@@ -4248,7 +4248,7 @@ class kucoin extends Exchange {
         }) ();
     }
 
-    public function borrow_isolated_margin(string $symbol, string $code, $amount, $params = array ()) {
+    public function borrow_isolated_margin(string $symbol, string $code, float $amount, $params = array ()) {
         return Async\async(function () use ($symbol, $code, $amount, $params) {
             /**
              * create a loan to borrow margin
@@ -4434,7 +4434,7 @@ class kucoin extends Exchange {
         $endpart = '';
         $headers = ($headers !== null) ? $headers : array();
         $url = $this->urls['api'][$api];
-        if ($query) {
+        if (!$this->is_empty($query)) {
             if (($method === 'GET') || ($method === 'DELETE')) {
                 $endpoint .= '?' . $this->rawencode($query);
             } else {

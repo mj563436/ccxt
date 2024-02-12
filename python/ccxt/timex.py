@@ -686,7 +686,7 @@ class timex(Exchange, ImplicitAPI):
         #
         return self.parse_balance(response)
 
-    def create_order(self, symbol: str, type: OrderType, side: OrderSide, amount, price=None, params={}):
+    def create_order(self, symbol: str, type: OrderType, side: OrderSide, amount: float, price: float = None, params={}):
         """
         create a trade order
         :param str symbol: unified symbol of the market to create an order in
@@ -755,7 +755,7 @@ class timex(Exchange, ImplicitAPI):
         order = self.safe_value(orders, 0, {})
         return self.parse_order(order, market)
 
-    def edit_order(self, id: str, symbol, type, side, amount=None, price=None, params={}):
+    def edit_order(self, id: str, symbol: str, type: OrderType, side: OrderSide, amount: float = None, price: float = None, params={}):
         self.load_markets()
         market = self.market(symbol)
         request = {

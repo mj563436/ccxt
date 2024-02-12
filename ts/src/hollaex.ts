@@ -1140,7 +1140,7 @@ export default class hollaex extends Exchange {
         }, market);
     }
 
-    async createOrder (symbol: string, type: OrderType, side: OrderSide, amount, price = undefined, params = {}) {
+    async createOrder (symbol: string, type: OrderType, side: OrderSide, amount: number, price: number = undefined, params = {}) {
         /**
          * @method
          * @name hollaex#createOrder
@@ -1359,7 +1359,7 @@ export default class hollaex extends Exchange {
         };
     }
 
-    async fetchDepositAddresses (codes = undefined, params = {}) {
+    async fetchDepositAddresses (codes: string[] = undefined, params = {}) {
         /**
          * @method
          * @name hollaex#fetchDepositAddresses
@@ -1689,7 +1689,7 @@ export default class hollaex extends Exchange {
         };
     }
 
-    async withdraw (code: string, amount, address, tag = undefined, params = {}) {
+    async withdraw (code: string, amount: number, address, tag = undefined, params = {}) {
         /**
          * @method
          * @name hollaex#withdraw

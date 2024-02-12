@@ -36,6 +36,7 @@ export default class phemex extends Exchange {
                 'addMargin': false,
                 'cancelAllOrders': true,
                 'cancelOrder': true,
+                'closePosition': false,
                 'createOrder': true,
                 'createReduceOnlyOrder': true,
                 'createStopLimitOrder': true,
@@ -1133,7 +1134,7 @@ export default class phemex extends Exchange {
         return orderbook;
     }
     toEn(n, scale) {
-        const stringN = n.toString();
+        const stringN = this.numberToString(n);
         const precise = new Precise(stringN);
         precise.decimals = precise.decimals - scale;
         precise.reduce();
@@ -2526,11 +2527,11 @@ export default class phemex extends Exchange {
                     }
                 }
                 cost = (cost === undefined) ? amount : cost;
-                const costString = cost.toString();
+                const costString = this.numberToString(cost);
                 request['quoteQtyEv'] = this.toEv(costString, market);
             }
             else {
-                const amountString = amount.toString();
+                const amountString = this.numberToString(amount);
                 request['baseQtyEv'] = this.toEv(amountString, market);
             }
         }
@@ -2548,7 +2549,7 @@ export default class phemex extends Exchange {
                 request['orderQtyRq'] = amount;
             }
             else {
-                request['orderQty'] = parseInt(amount);
+                request['orderQty'] = this.parseToInt(amount);
             }
             if (stopPrice !== undefined) {
                 const triggerType = this.safeString(params, 'triggerType', 'ByMarkPrice');
@@ -4345,10 +4346,10 @@ export default class phemex extends Exchange {
                 request['leverageRr'] = leverage;
             }
             else {
-                const long = (longLeverageRr !== undefined) ? longLeverageRr : leverage;
-                const short = (shortLeverageRr !== undefined) ? shortLeverageRr : leverage;
-                request['longLeverageRr'] = long;
-                request['shortLeverageRr'] = short;
+                const longVar = (longLeverageRr !== undefined) ? longLeverageRr : leverage;
+                const shortVar = (shortLeverageRr !== undefined) ? shortLeverageRr : leverage;
+                request['longLeverageRr'] = longVar;
+                request['shortLeverageRr'] = shortVar;
             }
             response = await this.privatePutGPositionsLeverage(this.extend(request, params));
         }
@@ -4665,7 +4666,10 @@ export default class phemex extends Exchange {
         const currency = this.currency(code);
         let networkCode = undefined;
         [networkCode, params] = this.handleNetworkCodeAndParams(params);
-        let networkId = this.networkCodeToId(networkCode);
+        let networkId = undefined;
+        if (networkCode !== undefined) {
+            networkId = this.networkCodeToId(networkCode);
+        }
         const stableCoins = this.safeValue(this.options, 'stableCoins');
         if (networkId === undefined) {
             if (!(this.inArray(code, stableCoins))) {

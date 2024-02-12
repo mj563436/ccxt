@@ -1260,7 +1260,7 @@ class lbank extends Exchange {
         return $result;
     }
 
-    public function create_market_buy_order_with_cost(string $symbol, $cost, $params = array ()) {
+    public function create_market_buy_order_with_cost(string $symbol, float $cost, $params = array ()) {
         /**
          * create a $market buy order by providing the $symbol and $cost
          * @see https://www.lbank.com/en-US/docs/index.html#place-order
@@ -1279,7 +1279,7 @@ class lbank extends Exchange {
         return $this->create_order($symbol, 'market', 'buy', $cost, null, $params);
     }
 
-    public function create_order(string $symbol, string $type, string $side, $amount, $price = null, $params = array ()) {
+    public function create_order(string $symbol, string $type, string $side, float $amount, ?float $price = null, $params = array ()) {
         /**
          * create a trade order
          * @see https://www.lbank.com/en-US/docs/index.html#place-order
@@ -1985,7 +1985,7 @@ class lbank extends Exchange {
         );
     }
 
-    public function withdraw(string $code, $amount, $address, $tag = null, $params = array ()) {
+    public function withdraw(string $code, float $amount, $address, $tag = null, $params = array ()): array {
         /**
          * make a withdrawal
          * @see https://www.lbank.com/en-US/docs/index.html#withdrawal
@@ -2258,7 +2258,7 @@ class lbank extends Exchange {
         return $this->parse_transactions($withdraws, $currency, $since, $limit);
     }
 
-    public function fetch_transaction_fees($codes = null, $params = array ()) {
+    public function fetch_transaction_fees(?array $codes = null, $params = array ()) {
         /**
          * @deprecated
          * please use fetchDepositWithdrawFees instead

@@ -349,7 +349,10 @@ class gemini extends Exchange {
                 $precision = $this->parse_number($this->parse_precision($this->safe_string($currency, 5)));
                 $networks = array();
                 $networkId = $this->safe_string($currency, 9);
-                $networkCode = $this->network_id_to_code($networkId);
+                $networkCode = null;
+                if ($networkId !== null) {
+                    $networkCode = $this->network_id_to_code($networkId);
+                }
                 if ($networkCode !== null) {
                     $networks[$networkCode] = array(
                         'info' => $currency,
@@ -1342,7 +1345,7 @@ class gemini extends Exchange {
         }) ();
     }
 
-    public function create_order(string $symbol, string $type, string $side, $amount, $price = null, $params = array ()) {
+    public function create_order(string $symbol, string $type, string $side, float $amount, ?float $price = null, $params = array ()) {
         return Async\async(function () use ($symbol, $type, $side, $amount, $price, $params) {
             /**
              * create a trade order
@@ -1509,7 +1512,7 @@ class gemini extends Exchange {
         }) ();
     }
 
-    public function withdraw(string $code, $amount, $address, $tag = null, $params = array ()) {
+    public function withdraw(string $code, float $amount, $address, $tag = null, $params = array ()) {
         return Async\async(function () use ($code, $amount, $address, $tag, $params) {
             /**
              * make a withdrawal

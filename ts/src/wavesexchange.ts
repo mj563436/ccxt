@@ -313,7 +313,7 @@ export default class wavesexchange extends Exchange {
                 },
             },
             'currencies': {
-                'WX': this.safeCurrencyStructure ({ 'id': 'EMAMLxDnv3xiz8RXg8Btj33jcEw3wLczL3JKYYmuubpc', 'numericId': undefined, 'code': 'WX', 'precision': this.parseNumber ('8') }),
+                'WX': this.safeCurrencyStructure ({ 'id': 'EMAMLxDnv3xiz8RXg8Btj33jcEw3wLczL3JKYYmuubpc', 'numericId': undefined, 'code': 'WX', 'precision': this.parseToInt ('8') }),
             },
             'precisionMode': DECIMAL_PLACES,
             'options': {
@@ -1266,7 +1266,8 @@ export default class wavesexchange extends Exchange {
         // precise.decimals should be integer
         precise.decimals = this.parseToInt (Precise.stringSub (this.numberToString (precise.decimals), this.numberToString (scale)));
         precise.reduce ();
-        return precise;
+        const stringValue = precise.toString ();
+        return stringValue;
     }
 
     currencyFromPrecision (currency, amount) {
@@ -1298,7 +1299,7 @@ export default class wavesexchange extends Exchange {
         return rates;
     }
 
-    async createOrder (symbol: string, type: OrderType, side: OrderSide, amount, price = undefined, params = {}) {
+    async createOrder (symbol: string, type: OrderType, side: OrderSide, amount: number, price: number = undefined, params = {}) {
         /**
          * @method
          * @name wavesexchange#createOrder
@@ -2451,7 +2452,7 @@ export default class wavesexchange extends Exchange {
         return undefined;
     }
 
-    async withdraw (code: string, amount, address, tag = undefined, params = {}) {
+    async withdraw (code: string, amount: number, address, tag = undefined, params = {}) {
         /**
          * @method
          * @name wavesexchange#withdraw

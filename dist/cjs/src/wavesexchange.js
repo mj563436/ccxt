@@ -311,7 +311,7 @@ class wavesexchange extends wavesexchange$1 {
                 },
             },
             'currencies': {
-                'WX': this.safeCurrencyStructure({ 'id': 'EMAMLxDnv3xiz8RXg8Btj33jcEw3wLczL3JKYYmuubpc', 'numericId': undefined, 'code': 'WX', 'precision': this.parseNumber('8') }),
+                'WX': this.safeCurrencyStructure({ 'id': 'EMAMLxDnv3xiz8RXg8Btj33jcEw3wLczL3JKYYmuubpc', 'numericId': undefined, 'code': 'WX', 'precision': this.parseToInt('8') }),
             },
             'precisionMode': number.DECIMAL_PLACES,
             'options': {
@@ -1253,7 +1253,8 @@ class wavesexchange extends wavesexchange$1 {
         // precise.decimals should be integer
         precise.decimals = this.parseToInt(Precise["default"].stringSub(this.numberToString(precise.decimals), this.numberToString(scale)));
         precise.reduce();
-        return precise;
+        const stringValue = precise.toString();
+        return stringValue;
     }
     currencyFromPrecision(currency, amount) {
         const scale = this.currencies[currency]['precision'];

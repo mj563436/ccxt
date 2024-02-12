@@ -25,10 +25,13 @@ class bitfinex2 extends bitfinex2$1 {
             'has': {
                 'CORS': undefined,
                 'spot': true,
-                'margin': undefined,
-                'swap': undefined,
+                'margin': true,
+                'swap': true,
                 'future': undefined,
                 'option': undefined,
+                'addMargin': false,
+                'borrowCrossMargin': false,
+                'borrowIsolatedMargin': false,
                 'cancelAllOrders': true,
                 'cancelOrder': true,
                 'cancelOrders': true,
@@ -43,20 +46,31 @@ class bitfinex2 extends bitfinex2$1 {
                 'createTrailingAmountOrder': true,
                 'createTrailingPercentOrder': false,
                 'createTriggerOrder': true,
-                'editOrder': false,
+                'editOrder': true,
                 'fetchBalance': true,
+                'fetchBorrowInterest': false,
+                'fetchBorrowRateHistories': false,
+                'fetchBorrowRateHistory': false,
                 'fetchClosedOrder': true,
                 'fetchClosedOrders': true,
+                'fetchCrossBorrowRate': false,
+                'fetchCrossBorrowRates': false,
                 'fetchCurrencies': true,
                 'fetchDepositAddress': true,
                 'fetchDepositsWithdrawals': true,
+                'fetchFundingHistory': false,
                 'fetchFundingRate': true,
                 'fetchFundingRateHistory': true,
                 'fetchFundingRates': true,
                 'fetchIndexOHLCV': false,
+                'fetchIsolatedBorrowRate': false,
+                'fetchIsolatedBorrowRates': false,
                 'fetchLedger': true,
+                'fetchLeverage': false,
+                'fetchLeverageTiers': false,
                 'fetchLiquidations': true,
                 'fetchMarginMode': false,
+                'fetchMarketLeverageTiers': false,
                 'fetchMarkOHLCV': false,
                 'fetchMyTrades': true,
                 'fetchOHLCV': true,
@@ -66,7 +80,10 @@ class bitfinex2 extends bitfinex2$1 {
                 'fetchOpenOrders': true,
                 'fetchOrder': true,
                 'fetchOrderTrades': true,
+                'fetchPosition': false,
                 'fetchPositionMode': false,
+                'fetchPositions': true,
+                'fetchPremiumIndexOHLCV': false,
                 'fetchStatus': true,
                 'fetchTickers': true,
                 'fetchTime': false,
@@ -74,7 +91,13 @@ class bitfinex2 extends bitfinex2$1 {
                 'fetchTradingFees': true,
                 'fetchTransactionFees': undefined,
                 'fetchTransactions': 'emulated',
+                'reduceMargin': false,
+                'repayCrossMargin': false,
+                'repayIsolatedMargin': false,
+                'setLeverage': false,
                 'setMargin': true,
+                'setMarginMode': false,
+                'setPositionMode': false,
                 'withdraw': true,
             },
             'timeframes': {
@@ -111,149 +134,149 @@ class bitfinex2 extends bitfinex2$1 {
             'api': {
                 'public': {
                     'get': {
-                        'conf/{config}': 2.66,
-                        'conf/pub:{action}:{object}': 2.66,
-                        'conf/pub:{action}:{object}:{detail}': 2.66,
-                        'conf/pub:map:{object}': 2.66,
-                        'conf/pub:map:{object}:{detail}': 2.66,
-                        'conf/pub:map:currency:{detail}': 2.66,
-                        'conf/pub:map:currency:sym': 2.66,
-                        'conf/pub:map:currency:label': 2.66,
-                        'conf/pub:map:currency:unit': 2.66,
-                        'conf/pub:map:currency:undl': 2.66,
-                        'conf/pub:map:currency:pool': 2.66,
-                        'conf/pub:map:currency:explorer': 2.66,
-                        'conf/pub:map:currency:tx:fee': 2.66,
-                        'conf/pub:map:tx:method': 2.66,
-                        'conf/pub:list:{object}': 2.66,
-                        'conf/pub:list:{object}:{detail}': 2.66,
-                        'conf/pub:list:currency': 2.66,
-                        'conf/pub:list:pair:exchange': 2.66,
-                        'conf/pub:list:pair:margin': 2.66,
-                        'conf/pub:list:pair:futures': 2.66,
-                        'conf/pub:list:competitions': 2.66,
-                        'conf/pub:info:{object}': 2.66,
-                        'conf/pub:info:{object}:{detail}': 2.66,
-                        'conf/pub:info:pair': 2.66,
-                        'conf/pub:info:pair:futures': 2.66,
-                        'conf/pub:info:tx:status': 2.66,
-                        'conf/pub:fees': 2.66,
+                        'conf/{config}': 2.7,
+                        'conf/pub:{action}:{object}': 2.7,
+                        'conf/pub:{action}:{object}:{detail}': 2.7,
+                        'conf/pub:map:{object}': 2.7,
+                        'conf/pub:map:{object}:{detail}': 2.7,
+                        'conf/pub:map:currency:{detail}': 2.7,
+                        'conf/pub:map:currency:sym': 2.7,
+                        'conf/pub:map:currency:label': 2.7,
+                        'conf/pub:map:currency:unit': 2.7,
+                        'conf/pub:map:currency:undl': 2.7,
+                        'conf/pub:map:currency:pool': 2.7,
+                        'conf/pub:map:currency:explorer': 2.7,
+                        'conf/pub:map:currency:tx:fee': 2.7,
+                        'conf/pub:map:tx:method': 2.7,
+                        'conf/pub:list:{object}': 2.7,
+                        'conf/pub:list:{object}:{detail}': 2.7,
+                        'conf/pub:list:currency': 2.7,
+                        'conf/pub:list:pair:exchange': 2.7,
+                        'conf/pub:list:pair:margin': 2.7,
+                        'conf/pub:list:pair:futures': 2.7,
+                        'conf/pub:list:competitions': 2.7,
+                        'conf/pub:info:{object}': 2.7,
+                        'conf/pub:info:{object}:{detail}': 2.7,
+                        'conf/pub:info:pair': 2.7,
+                        'conf/pub:info:pair:futures': 2.7,
+                        'conf/pub:info:tx:status': 2.7,
+                        'conf/pub:fees': 2.7,
                         'platform/status': 8,
-                        'tickers': 2.66,
-                        'ticker/{symbol}': 2.66,
-                        'tickers/hist': 2.66,
-                        'trades/{symbol}/hist': 2.66,
+                        'tickers': 2.7,
+                        'ticker/{symbol}': 2.7,
+                        'tickers/hist': 2.7,
+                        'trades/{symbol}/hist': 2.7,
                         'book/{symbol}/{precision}': 1,
                         'book/{symbol}/P0': 1,
                         'book/{symbol}/P1': 1,
                         'book/{symbol}/P2': 1,
                         'book/{symbol}/P3': 1,
                         'book/{symbol}/R0': 1,
-                        'stats1/{key}:{size}:{symbol}:{side}/{section}': 2.66,
-                        'stats1/{key}:{size}:{symbol}:{side}/last': 2.66,
-                        'stats1/{key}:{size}:{symbol}:{side}/hist': 2.66,
-                        'stats1/{key}:{size}:{symbol}/{section}': 2.66,
-                        'stats1/{key}:{size}:{symbol}/last': 2.66,
-                        'stats1/{key}:{size}:{symbol}/hist': 2.66,
-                        'stats1/{key}:{size}:{symbol}:long/last': 2.66,
-                        'stats1/{key}:{size}:{symbol}:long/hist': 2.66,
-                        'stats1/{key}:{size}:{symbol}:short/last': 2.66,
-                        'stats1/{key}:{size}:{symbol}:short/hist': 2.66,
-                        'candles/trade:{timeframe}:{symbol}:{period}/{section}': 2.66,
-                        'candles/trade:{timeframe}:{symbol}/{section}': 2.66,
-                        'candles/trade:{timeframe}:{symbol}/last': 2.66,
-                        'candles/trade:{timeframe}:{symbol}/hist': 2.66,
-                        'status/{type}': 2.66,
-                        'status/deriv': 2.66,
-                        'status/deriv/{symbol}/hist': 2.66,
+                        'stats1/{key}:{size}:{symbol}:{side}/{section}': 2.7,
+                        'stats1/{key}:{size}:{symbol}:{side}/last': 2.7,
+                        'stats1/{key}:{size}:{symbol}:{side}/hist': 2.7,
+                        'stats1/{key}:{size}:{symbol}/{section}': 2.7,
+                        'stats1/{key}:{size}:{symbol}/last': 2.7,
+                        'stats1/{key}:{size}:{symbol}/hist': 2.7,
+                        'stats1/{key}:{size}:{symbol}:long/last': 2.7,
+                        'stats1/{key}:{size}:{symbol}:long/hist': 2.7,
+                        'stats1/{key}:{size}:{symbol}:short/last': 2.7,
+                        'stats1/{key}:{size}:{symbol}:short/hist': 2.7,
+                        'candles/trade:{timeframe}:{symbol}:{period}/{section}': 2.7,
+                        'candles/trade:{timeframe}:{symbol}/{section}': 2.7,
+                        'candles/trade:{timeframe}:{symbol}/last': 2.7,
+                        'candles/trade:{timeframe}:{symbol}/hist': 2.7,
+                        'status/{type}': 2.7,
+                        'status/deriv': 2.7,
+                        'status/deriv/{symbol}/hist': 2.7,
                         'liquidations/hist': 80,
-                        'rankings/{key}:{timeframe}:{symbol}/{section}': 2.66,
-                        'rankings/{key}:{timeframe}:{symbol}/hist': 2.66,
-                        'pulse/hist': 2.66,
-                        'pulse/profile/{nickname}': 2.66,
+                        'rankings/{key}:{timeframe}:{symbol}/{section}': 2.7,
+                        'rankings/{key}:{timeframe}:{symbol}/hist': 2.7,
+                        'pulse/hist': 2.7,
+                        'pulse/profile/{nickname}': 2.7,
                         'funding/stats/{symbol}/hist': 10, // ratelimit not in docs
                     },
                     'post': {
-                        'calc/trade/avg': 2.66,
-                        'calc/fx': 2.66,
+                        'calc/trade/avg': 2.7,
+                        'calc/fx': 2.7,
                     },
                 },
                 'private': {
                     'post': {
                         // 'auth/r/orders/{symbol}/new', // outdated
                         // 'auth/r/stats/perf:{timeframe}/hist', // outdated
-                        'auth/r/wallets': 2.66,
-                        'auth/r/wallets/hist': 2.66,
-                        'auth/r/orders': 2.66,
-                        'auth/r/orders/{symbol}': 2.66,
-                        'auth/w/order/submit': 2.66,
-                        'auth/w/order/update': 2.66,
-                        'auth/w/order/cancel': 2.66,
-                        'auth/w/order/multi': 2.66,
-                        'auth/w/order/cancel/multi': 2.66,
-                        'auth/r/orders/{symbol}/hist': 2.66,
-                        'auth/r/orders/hist': 2.66,
-                        'auth/r/order/{symbol}:{id}/trades': 2.66,
-                        'auth/r/trades/{symbol}/hist': 2.66,
-                        'auth/r/trades/hist': 2.66,
-                        'auth/r/ledgers/{currency}/hist': 2.66,
-                        'auth/r/ledgers/hist': 2.66,
-                        'auth/r/info/margin/{key}': 2.66,
-                        'auth/r/info/margin/base': 2.66,
-                        'auth/r/info/margin/sym_all': 2.66,
-                        'auth/r/positions': 2.66,
-                        'auth/w/position/claim': 2.66,
-                        'auth/w/position/increase:': 2.66,
-                        'auth/r/position/increase/info': 2.66,
-                        'auth/r/positions/hist': 2.66,
-                        'auth/r/positions/audit': 2.66,
-                        'auth/r/positions/snap': 2.66,
-                        'auth/w/deriv/collateral/set': 2.66,
-                        'auth/w/deriv/collateral/limits': 2.66,
-                        'auth/r/funding/offers': 2.66,
-                        'auth/r/funding/offers/{symbol}': 2.66,
-                        'auth/w/funding/offer/submit': 2.66,
-                        'auth/w/funding/offer/cancel': 2.66,
-                        'auth/w/funding/offer/cancel/all': 2.66,
-                        'auth/w/funding/close': 2.66,
-                        'auth/w/funding/auto': 2.66,
-                        'auth/w/funding/keep': 2.66,
-                        'auth/r/funding/offers/{symbol}/hist': 2.66,
-                        'auth/r/funding/offers/hist': 2.66,
-                        'auth/r/funding/loans': 2.66,
-                        'auth/r/funding/loans/hist': 2.66,
-                        'auth/r/funding/loans/{symbol}': 2.66,
-                        'auth/r/funding/loans/{symbol}/hist': 2.66,
-                        'auth/r/funding/credits': 2.66,
-                        'auth/r/funding/credits/hist': 2.66,
-                        'auth/r/funding/credits/{symbol}': 2.66,
-                        'auth/r/funding/credits/{symbol}/hist': 2.66,
-                        'auth/r/funding/trades/{symbol}/hist': 2.66,
-                        'auth/r/funding/trades/hist': 2.66,
-                        'auth/r/info/funding/{key}': 2.66,
-                        'auth/r/info/user': 2.66,
-                        'auth/r/summary': 2.66,
-                        'auth/r/logins/hist': 2.66,
-                        'auth/r/permissions': 2.66,
-                        'auth/w/token': 2.66,
-                        'auth/r/audit/hist': 2.66,
-                        'auth/w/transfer': 2.66,
+                        'auth/r/wallets': 2.7,
+                        'auth/r/wallets/hist': 2.7,
+                        'auth/r/orders': 2.7,
+                        'auth/r/orders/{symbol}': 2.7,
+                        'auth/w/order/submit': 2.7,
+                        'auth/w/order/update': 2.7,
+                        'auth/w/order/cancel': 2.7,
+                        'auth/w/order/multi': 2.7,
+                        'auth/w/order/cancel/multi': 2.7,
+                        'auth/r/orders/{symbol}/hist': 2.7,
+                        'auth/r/orders/hist': 2.7,
+                        'auth/r/order/{symbol}:{id}/trades': 2.7,
+                        'auth/r/trades/{symbol}/hist': 2.7,
+                        'auth/r/trades/hist': 2.7,
+                        'auth/r/ledgers/{currency}/hist': 2.7,
+                        'auth/r/ledgers/hist': 2.7,
+                        'auth/r/info/margin/{key}': 2.7,
+                        'auth/r/info/margin/base': 2.7,
+                        'auth/r/info/margin/sym_all': 2.7,
+                        'auth/r/positions': 2.7,
+                        'auth/w/position/claim': 2.7,
+                        'auth/w/position/increase:': 2.7,
+                        'auth/r/position/increase/info': 2.7,
+                        'auth/r/positions/hist': 2.7,
+                        'auth/r/positions/audit': 2.7,
+                        'auth/r/positions/snap': 2.7,
+                        'auth/w/deriv/collateral/set': 2.7,
+                        'auth/w/deriv/collateral/limits': 2.7,
+                        'auth/r/funding/offers': 2.7,
+                        'auth/r/funding/offers/{symbol}': 2.7,
+                        'auth/w/funding/offer/submit': 2.7,
+                        'auth/w/funding/offer/cancel': 2.7,
+                        'auth/w/funding/offer/cancel/all': 2.7,
+                        'auth/w/funding/close': 2.7,
+                        'auth/w/funding/auto': 2.7,
+                        'auth/w/funding/keep': 2.7,
+                        'auth/r/funding/offers/{symbol}/hist': 2.7,
+                        'auth/r/funding/offers/hist': 2.7,
+                        'auth/r/funding/loans': 2.7,
+                        'auth/r/funding/loans/hist': 2.7,
+                        'auth/r/funding/loans/{symbol}': 2.7,
+                        'auth/r/funding/loans/{symbol}/hist': 2.7,
+                        'auth/r/funding/credits': 2.7,
+                        'auth/r/funding/credits/hist': 2.7,
+                        'auth/r/funding/credits/{symbol}': 2.7,
+                        'auth/r/funding/credits/{symbol}/hist': 2.7,
+                        'auth/r/funding/trades/{symbol}/hist': 2.7,
+                        'auth/r/funding/trades/hist': 2.7,
+                        'auth/r/info/funding/{key}': 2.7,
+                        'auth/r/info/user': 2.7,
+                        'auth/r/summary': 2.7,
+                        'auth/r/logins/hist': 2.7,
+                        'auth/r/permissions': 2.7,
+                        'auth/w/token': 2.7,
+                        'auth/r/audit/hist': 2.7,
+                        'auth/w/transfer': 2.7,
                         'auth/w/deposit/address': 24,
                         'auth/w/deposit/invoice': 24,
                         'auth/w/withdraw': 24,
-                        'auth/r/movements/{currency}/hist': 2.66,
-                        'auth/r/movements/hist': 2.66,
-                        'auth/r/alerts': 5.33,
-                        'auth/w/alert/set': 2.66,
-                        'auth/w/alert/price:{symbol}:{price}/del': 2.66,
-                        'auth/w/alert/{type}:{symbol}:{price}/del': 2.66,
-                        'auth/calc/order/avail': 2.66,
-                        'auth/w/settings/set': 2.66,
-                        'auth/r/settings': 2.66,
-                        'auth/w/settings/del': 2.66,
-                        'auth/r/pulse/hist': 2.66,
+                        'auth/r/movements/{currency}/hist': 2.7,
+                        'auth/r/movements/hist': 2.7,
+                        'auth/r/alerts': 5.34,
+                        'auth/w/alert/set': 2.7,
+                        'auth/w/alert/price:{symbol}:{price}/del': 2.7,
+                        'auth/w/alert/{type}:{symbol}:{price}/del': 2.7,
+                        'auth/calc/order/avail': 2.7,
+                        'auth/w/settings/set': 2.7,
+                        'auth/r/settings': 2.7,
+                        'auth/w/settings/del': 2.7,
+                        'auth/r/pulse/hist': 2.7,
                         'auth/w/pulse/add': 16,
-                        'auth/w/pulse/del': 2.66,
+                        'auth/w/pulse/del': 2.7,
                     },
                 },
             },
@@ -342,6 +365,7 @@ class bitfinex2 extends bitfinex2$1 {
                     'margin': 'margin',
                     'derivatives': 'margin',
                     'future': 'margin',
+                    'swap': 'margin',
                 },
                 'withdraw': {
                     'includeFee': false,
@@ -998,7 +1022,7 @@ class bitfinex2 extends bitfinex2$1 {
          * @description fetches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
          * @see https://docs.bitfinex.com/reference/rest-public-book
          * @param {string} symbol unified symbol of the market to fetch the order book for
-         * @param {int} [limit] the maximum amount of order book entries to return
+         * @param {int} [limit] the maximum amount of order book entries to return, bitfinex only allows 1, 25, or 100
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} A dictionary of [order book structures]{@link https://docs.ccxt.com/#/?id=order-book-structure} indexed by market symbols
          */
@@ -1010,7 +1034,7 @@ class bitfinex2 extends bitfinex2$1 {
             'precision': precision,
         };
         if (limit !== undefined) {
-            request['len'] = limit; // 25 or 100
+            request['len'] = limit;
         }
         const fullRequest = this.extend(request, params);
         const orderbook = await this.publicGetBookSymbolPrecision(fullRequest);
@@ -1282,9 +1306,9 @@ class bitfinex2 extends bitfinex2$1 {
          * @see https://docs.bitfinex.com/reference/rest-public-trades
          * @param {string} symbol unified symbol of the market to fetch trades for
          * @param {int} [since] timestamp in ms of the earliest trade to fetch
-         * @param {int} [limit] the maximum amount of trades to fetch
+         * @param {int} [limit] the maximum amount of trades to fetch, default 120, max 10000
          * @param {object} [params] extra parameters specific to the exchange API endpoint
-         * @param {boolean} [params.paginate] default false, when true will automatically paginate by calling this endpoint multiple times. See in the docs all the [availble parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params)
+         * @param {boolean} [params.paginate] default false, when true will automatically paginate by calling this endpoint multiple times. See in the docs all the [available parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params)
          * @param {int} [params.until] the latest time in ms to fetch entries for
          * @returns {Trade[]} a list of [trade structures]{@link https://docs.ccxt.com/#/?id=public-trades}
          */
@@ -1331,11 +1355,11 @@ class bitfinex2 extends bitfinex2$1 {
          * @param {string} symbol unified symbol of the market to fetch OHLCV data for
          * @param {string} timeframe the length of time each candle represents
          * @param {int} [since] timestamp in ms of the earliest candle to fetch
-         * @param {int} [limit] the maximum amount of candles to fetch
+         * @param {int} [limit] the maximum amount of candles to fetch, default 100 max 10000
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {int[][]} A list of candles ordered as timestamp, open, high, low, close, volume
          * @param {int} [params.until] timestamp in ms of the latest candle to fetch
-         * @param {boolean} [params.paginate] default false, when true will automatically paginate by calling this endpoint multiple times. See in the docs all the [availble parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params)
+         * @param {boolean} [params.paginate] default false, when true will automatically paginate by calling this endpoint multiple times. See in the docs all the [available parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params)
          */
         await this.loadMarkets();
         let paginate = false;
@@ -1345,7 +1369,7 @@ class bitfinex2 extends bitfinex2$1 {
         }
         const market = this.market(symbol);
         if (limit === undefined) {
-            limit = 10000; // default 100, max 5000
+            limit = 10000;
         }
         let request = {
             'symbol': market['id'],
@@ -2860,13 +2884,12 @@ class bitfinex2 extends bitfinex2$1 {
          * @see https://docs.bitfinex.com/reference/rest-auth-ledgers
          * @param {string} code unified currency code, default is undefined
          * @param {int} [since] timestamp in ms of the earliest ledger entry, default is undefined
-         * @param {int} [limit] max number of ledger entrys to return, default is undefined
+         * @param {int} [limit] max number of ledger entrys to return, default is undefined max is 2500
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @param {int} [params.until] timestamp in ms of the latest ledger entry
-         * @param {boolean} [params.paginate] default false, when true will automatically paginate by calling this endpoint multiple times. See in the docs all the [availble parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params)
+         * @param {boolean} [params.paginate] default false, when true will automatically paginate by calling this endpoint multiple times. See in the docs all the [available parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params)
          * @returns {object} a [ledger structure]{@link https://docs.ccxt.com/#/?id=ledger-structure}
          */
-        await this.loadMarkets();
         await this.loadMarkets();
         let paginate = false;
         [paginate, params] = this.handleOptionAndParams(params, 'fetchLedger', 'paginate');
@@ -2879,7 +2902,7 @@ class bitfinex2 extends bitfinex2$1 {
             request['start'] = since;
         }
         if (limit !== undefined) {
-            request['limit'] = limit; // max 2500
+            request['limit'] = limit;
         }
         [request, params] = this.handleUntilOption('end', request, params);
         let response = undefined;
@@ -2911,7 +2934,7 @@ class bitfinex2 extends bitfinex2$1 {
     async fetchFundingRate(symbol, params = {}) {
         /**
          * @method
-         * @name bitfine#fetchFundingRate
+         * @name bitfinex2#fetchFundingRate
          * @description fetch the current funding rate
          * @see https://docs.bitfinex.com/reference/rest-public-derivatives-status
          * @param {string} symbol unified market symbol
@@ -2923,7 +2946,7 @@ class bitfinex2 extends bitfinex2$1 {
     async fetchFundingRates(symbols = undefined, params = {}) {
         /**
          * @method
-         * @name bitfine#fetchFundingRate
+         * @name bitfinex2#fetchFundingRate
          * @description fetch the current funding rate
          * @see https://docs.bitfinex.com/reference/rest-public-derivatives-status
          * @param {string[]} symbols list of unified market symbols
@@ -2974,13 +2997,15 @@ class bitfinex2 extends bitfinex2$1 {
     async fetchFundingRateHistory(symbol = undefined, since = undefined, limit = undefined, params = {}) {
         /**
          * @method
-         * @name bitfine#fetchFundingRateHistory
+         * @name bitfinex2#fetchFundingRateHistory
          * @description fetches historical funding rate prices
          * @see https://docs.bitfinex.com/reference/rest-public-derivatives-status-history
          * @param {string} symbol unified market symbol
+         * @param {int} [since] timestamp in ms of the earliest funding rate entry
+         * @param {int} [limit] max number of funding rate entrys to return
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @param {int} [params.until] timestamp in ms of the latest funding rate
-         * @param {boolean} [params.paginate] default false, when true will automatically paginate by calling this endpoint multiple times. See in the docs all the [availble parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params)
+         * @param {boolean} [params.paginate] default false, when true will automatically paginate by calling this endpoint multiple times. See in the docs all the [available parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-params)
          * @returns {object} a [funding rate structure]{@link https://docs.ccxt.com/#/?id=funding-rate-structure}
          */
         if (symbol === undefined) {
@@ -3037,7 +3062,15 @@ class bitfinex2 extends bitfinex2$1 {
             const rate = this.parseFundingRateHistory(fr, market);
             rates.push(rate);
         }
-        return this.filterBySymbolSinceLimit(rates, symbol, since, limit);
+        const reversedArray = [];
+        const rawRates = this.filterBySymbolSinceLimit(rates, symbol, since, limit);
+        const rawRatesLength = rawRates.length;
+        const ratesLength = Math.max(rawRatesLength - 1, 0);
+        for (let i = ratesLength; i >= 0; i--) {
+            const valueAtIndex = rawRates[i];
+            reversedArray.push(valueAtIndex);
+        }
+        return reversedArray;
     }
     parseFundingRate(contract, market = undefined) {
         //
@@ -3187,7 +3220,8 @@ class bitfinex2 extends bitfinex2$1 {
         //         ]
         //     ]
         //
-        return this.parseOpenInterest(response[0], market);
+        const oi = this.safeList(response, 0);
+        return this.parseOpenInterest(oi, market);
     }
     async fetchOpenInterestHistory(symbol, timeframe = '1m', since = undefined, limit = undefined, params = {}) {
         /**
@@ -3457,6 +3491,199 @@ class bitfinex2 extends bitfinex2$1 {
             'symbol': market['symbol'],
             'status': marginStatus,
         };
+    }
+    async fetchOrder(id, symbol = undefined, params = {}) {
+        /**
+         * @method
+         * @name bitfinex2#fetchOrder
+         * @description fetches information on an order made by the user
+         * @see https://docs.bitfinex.com/reference/rest-auth-retrieve-orders
+         * @see https://docs.bitfinex.com/reference/rest-auth-retrieve-orders-by-symbol
+         * @param {string} id the order id
+         * @param {string} [symbol] unified symbol of the market the order was made in
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        await this.loadMarkets();
+        const request = {
+            'id': [this.parseToNumeric(id)],
+        };
+        let market = undefined;
+        let response = undefined;
+        if (symbol === undefined) {
+            response = await this.privatePostAuthROrders(this.extend(request, params));
+        }
+        else {
+            market = this.market(symbol);
+            request['symbol'] = market['id'];
+            response = await this.privatePostAuthROrdersSymbol(this.extend(request, params));
+        }
+        //
+        //     [
+        //         [
+        //             139658969116,
+        //             null,
+        //             1706843908637,
+        //             "tBTCUST",
+        //             1706843908637,
+        //             1706843908638,
+        //             0.0001,
+        //             0.0001,
+        //             "EXCHANGE LIMIT",
+        //             null,
+        //             null,
+        //             null,
+        //             0,
+        //             "ACTIVE",
+        //             null,
+        //             null,
+        //             35000,
+        //             0,
+        //             0,
+        //             0,
+        //             null,
+        //             null,
+        //             null,
+        //             0,
+        //             0,
+        //             null,
+        //             null,
+        //             null,
+        //             "API>BFX",
+        //             null,
+        //             null,
+        //             {}
+        //         ]
+        //     ]
+        //
+        const order = this.safeList(response, 0);
+        return this.parseOrder(order, market);
+    }
+    async editOrder(id, symbol, type, side, amount = undefined, price = undefined, params = {}) {
+        /**
+         * @method
+         * @name bitfinex2#editOrder
+         * @description edit a trade order
+         * @see https://docs.bitfinex.com/reference/rest-auth-update-order
+         * @param {string} id edit order id
+         * @param {string} symbol unified symbol of the market to edit an order in
+         * @param {string} type 'market' or 'limit'
+         * @param {string} side 'buy' or 'sell'
+         * @param {float} amount how much you want to trade in units of the base currency
+         * @param {float} [price] the price that the order is to be fullfilled, in units of the quote currency, ignored in market orders
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @param {float} [params.stopPrice] the price that triggers a trigger order
+         * @param {boolean} [params.postOnly] set to true if you want to make a post only order
+         * @param {boolean} [params.reduceOnly] indicates that the order is to reduce the size of a position
+         * @param {int} [params.flags] additional order parameters: 4096 (Post Only), 1024 (Reduce Only), 16384 (OCO), 64 (Hidden), 512 (Close), 524288 (No Var Rates)
+         * @param {int} [params.leverage] leverage for a derivative order, supported by derivative symbol orders only, the value should be between 1 and 100 inclusive
+         * @param {int} [params.clientOrderId] a unique client order id for the order
+         * @param {float} [params.trailingAmount] *swap only* the quote amount to trail away from the current market price
+         * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        await this.loadMarkets();
+        const market = this.market(symbol);
+        const request = {
+            'id': this.parseToNumeric(id),
+        };
+        if (amount !== undefined) {
+            let amountString = this.amountToPrecision(symbol, amount);
+            amountString = (side === 'buy') ? amountString : Precise["default"].stringNeg(amountString);
+            request['amount'] = amountString;
+        }
+        const stopPrice = this.safeString2(params, 'stopPrice', 'triggerPrice');
+        const trailingAmount = this.safeString(params, 'trailingAmount');
+        const timeInForce = this.safeString(params, 'timeInForce');
+        const postOnlyParam = this.safeBool(params, 'postOnly', false);
+        const reduceOnly = this.safeBool(params, 'reduceOnly', false);
+        const clientOrderId = this.safeInteger2(params, 'cid', 'clientOrderId');
+        if (trailingAmount !== undefined) {
+            request['price_trailing'] = trailingAmount;
+        }
+        else if (stopPrice !== undefined) {
+            // request['price'] is taken as stopPrice for stop orders
+            request['price'] = this.priceToPrecision(symbol, stopPrice);
+            if (type === 'limit') {
+                request['price_aux_limit'] = this.priceToPrecision(symbol, price);
+            }
+        }
+        const postOnly = (postOnlyParam || (timeInForce === 'PO'));
+        if ((type !== 'market') && (stopPrice === undefined)) {
+            request['price'] = this.priceToPrecision(symbol, price);
+        }
+        // flag values may be summed to combine flags
+        let flags = 0;
+        if (postOnly) {
+            flags = this.sum(flags, 4096);
+        }
+        if (reduceOnly) {
+            flags = this.sum(flags, 1024);
+        }
+        if (flags !== 0) {
+            request['flags'] = flags;
+        }
+        if (clientOrderId !== undefined) {
+            request['cid'] = clientOrderId;
+        }
+        const leverage = this.safeInteger2(params, 'leverage', 'lev');
+        if (leverage !== undefined) {
+            request['lev'] = leverage;
+        }
+        params = this.omit(params, ['triggerPrice', 'stopPrice', 'timeInForce', 'postOnly', 'reduceOnly', 'trailingAmount', 'clientOrderId', 'leverage']);
+        const response = await this.privatePostAuthWOrderUpdate(this.extend(request, params));
+        //
+        //     [
+        //         1706845376402,
+        //         "ou-req",
+        //         null,
+        //         null,
+        //         [
+        //             139658969116,
+        //             null,
+        //             1706843908637,
+        //             "tBTCUST",
+        //             1706843908637,
+        //             1706843908638,
+        //             0.0002,
+        //             0.0002,
+        //             "EXCHANGE LIMIT",
+        //             null,
+        //             null,
+        //             null,
+        //             0,
+        //             "ACTIVE",
+        //             null,
+        //             null,
+        //             35000,
+        //             0,
+        //             0,
+        //             0,
+        //             null,
+        //             null,
+        //             null,
+        //             0,
+        //             0,
+        //             null,
+        //             null,
+        //             null,
+        //             "API>BFX",
+        //             null,
+        //             null,
+        //             {}
+        //         ],
+        //         null,
+        //         "SUCCESS",
+        //         "Submitting update to exchange limit buy order for 0.0002 BTC."
+        //     ]
+        //
+        const status = this.safeString(response, 6);
+        if (status !== 'SUCCESS') {
+            const errorCode = response[5];
+            const errorText = response[7];
+            throw new errors.ExchangeError(this.id + ' ' + response[6] + ': ' + errorText + ' (#' + errorCode + ')');
+        }
+        const order = this.safeList(response, 4, []);
+        return this.parseOrder(order, market);
     }
 }
 

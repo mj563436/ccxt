@@ -1854,7 +1854,7 @@ class kucoin extends Exchange {
         return array( $triggerPrice, $stopLossPrice, $takeProfitPrice );
     }
 
-    public function create_order(string $symbol, string $type, string $side, $amount, $price = null, $params = array ()) {
+    public function create_order(string $symbol, string $type, string $side, float $amount, ?float $price = null, $params = array ()) {
         /**
          * Create an order on the exchange
          * @see https://docs.kucoin.com/spot#place-a-new-order
@@ -1936,7 +1936,7 @@ class kucoin extends Exchange {
         return $this->parse_order($data, $market);
     }
 
-    public function create_market_order_with_cost(string $symbol, string $side, $cost, $params = array ()) {
+    public function create_market_order_with_cost(string $symbol, string $side, float $cost, $params = array ()) {
         /**
          * create a market order by providing the $symbol, $side and $cost
          * @see https://www.kucoin.com/docs/rest/spot-trading/orders/place-order
@@ -1951,7 +1951,7 @@ class kucoin extends Exchange {
         return $this->create_order($symbol, 'market', $side, $cost, null, $params);
     }
 
-    public function create_market_buy_order_with_cost(string $symbol, $cost, $params = array ()) {
+    public function create_market_buy_order_with_cost(string $symbol, float $cost, $params = array ()) {
         /**
          * create a market buy order by providing the $symbol and $cost
          * @see https://www.kucoin.com/docs/rest/spot-trading/orders/place-order
@@ -1964,7 +1964,7 @@ class kucoin extends Exchange {
         return $this->create_market_order_with_cost($symbol, 'buy', $cost, $params);
     }
 
-    public function create_market_sell_order_with_cost(string $symbol, $cost, $params = array ()) {
+    public function create_market_sell_order_with_cost(string $symbol, float $cost, $params = array ()) {
         /**
          * create a market sell order by providing the $symbol and $cost
          * @see https://www.kucoin.com/docs/rest/spot-trading/orders/place-order
@@ -2059,7 +2059,7 @@ class kucoin extends Exchange {
         return $this->parse_orders($data);
     }
 
-    public function create_order_request(string $symbol, string $type, string $side, $amount, $price = null, $params = array ()) {
+    public function create_order_request(string $symbol, string $type, string $side, float $amount, ?float $price = null, $params = array ()) {
         $market = $this->market($symbol);
         // required param, cannot be used twice
         $clientOrderId = $this->safe_string_2($params, 'clientOid', 'clientOrderId', $this->uuid());
@@ -2125,7 +2125,7 @@ class kucoin extends Exchange {
         return array_merge($request, $params);
     }
 
-    public function edit_order(string $id, $symbol, $type, $side, $amount = null, $price = null, $params = array ()) {
+    public function edit_order(string $id, string $symbol, string $type, string $side, ?float $amount = null, ?float $price = null, $params = array ()) {
         /**
          * edit an order, kucoin currently only supports the modification of HF orders
          * @see https://docs.kucoin.com/spot-hf/#modify-order
@@ -3025,7 +3025,7 @@ class kucoin extends Exchange {
         );
     }
 
-    public function withdraw(string $code, $amount, $address, $tag = null, $params = array ()) {
+    public function withdraw(string $code, float $amount, $address, $tag = null, $params = array ()) {
         /**
          * make a withdrawal
          * @see https://docs.kucoin.com/#apply-withdraw-2
@@ -3525,7 +3525,7 @@ class kucoin extends Exchange {
         return $returnType;
     }
 
-    public function transfer(string $code, $amount, $fromAccount, $toAccount, $params = array ()) {
+    public function transfer(string $code, float $amount, string $fromAccount, string $toAccount, $params = array ()): TransferEntry {
         /**
          * transfer $currency internally between wallets on the same account
          * @see https://docs.kucoin.com/#inner-transfer
@@ -4130,7 +4130,7 @@ class kucoin extends Exchange {
         );
     }
 
-    public function borrow_cross_margin(string $code, $amount, $params = array ()) {
+    public function borrow_cross_margin(string $code, float $amount, $params = array ()) {
         /**
          * create a loan to borrow margin
          * @see https://docs.kucoin.com/#1-margin-borrowing
@@ -4164,7 +4164,7 @@ class kucoin extends Exchange {
         return $this->parse_margin_loan($data, $currency);
     }
 
-    public function borrow_isolated_margin(string $symbol, string $code, $amount, $params = array ()) {
+    public function borrow_isolated_margin(string $symbol, string $code, float $amount, $params = array ()) {
         /**
          * create a loan to borrow margin
          * @see https://docs.kucoin.com/#1-margin-borrowing
@@ -4342,7 +4342,7 @@ class kucoin extends Exchange {
         $endpart = '';
         $headers = ($headers !== null) ? $headers : array();
         $url = $this->urls['api'][$api];
-        if ($query) {
+        if (!$this->is_empty($query)) {
             if (($method === 'GET') || ($method === 'DELETE')) {
                 $endpoint .= '?' . $this->rawencode($query);
             } else {

@@ -214,6 +214,7 @@ class coinbase extends Exchange {
                             'brokerage/orders/batch_cancel',
                             'brokerage/orders/edit',
                             'brokerage/orders/edit_preview',
+                            'brokerage/orders/preview',
                             'brokerage/portfolios',
                             'brokerage/portfolios/move_funds',
                             'brokerage/convert/quote',
@@ -422,11 +423,12 @@ class coinbase extends Exchange {
         //         ]
         //     }
         //
-        $data = $this->safe_value($response, 'data', array());
-        $pagination = $this->safe_value($response, 'pagination', array());
+        $data = $this->safe_list($response, 'data', array());
+        $pagination = $this->safe_dict($response, 'pagination', array());
         $cursor = $this->safe_string($pagination, 'next_starting_after');
-        $accounts = $this->safe_value($response, 'data', array());
-        $lastIndex = strlen($accounts) - 1;
+        $accounts = $this->safe_list($response, 'data', array());
+        $length = count($accounts);
+        $lastIndex = $length - 1;
         $last = $this->safe_value($accounts, $lastIndex);
         if (($cursor !== null) && ($cursor !== '')) {
             $last['next_starting_after'] = $cursor;
@@ -476,8 +478,9 @@ class coinbase extends Exchange {
         //         "size" => 9
         //     }
         //
-        $accounts = $this->safe_value($response, 'accounts', array());
-        $lastIndex = strlen($accounts) - 1;
+        $accounts = $this->safe_list($response, 'accounts', array());
+        $length = count($accounts);
+        $lastIndex = $length - 1;
         $last = $this->safe_value($accounts, $lastIndex);
         $cursor = $this->safe_string($response, 'cursor');
         if (($cursor !== null) && ($cursor !== '')) {
@@ -715,7 +718,7 @@ class coinbase extends Exchange {
         return $this->safe_string($statuses, $status, $status);
     }
 
-    public function parse_transaction($transaction, ?array $currency = null) {
+    public function parse_transaction($transaction, ?array $currency = null): array {
         //
         // fiat deposit
         //
@@ -1620,7 +1623,7 @@ class coinbase extends Exchange {
         ), $market);
     }
 
-    public function parse_balance($response, $params = array ()) {
+    public function parse_custom_balance($response, $params = array ()) {
         $balances = $this->safe_value_2($response, 'data', 'accounts', array());
         $accounts = $this->safe_value($params, 'type', $this->options['accounts']);
         $v3Accounts = $this->safe_value($params, 'type', $this->options['v3Accounts']);
@@ -1766,7 +1769,7 @@ class coinbase extends Exchange {
         //         "size" => 9
         //     }
         //
-        return $this->parse_balance($response, $params);
+        return $this->parse_custom_balance($response, $params);
     }
 
     public function fetch_ledger(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()) {
@@ -2170,7 +2173,7 @@ class coinbase extends Exchange {
         return $request;
     }
 
-    public function create_market_buy_order_with_cost(string $symbol, $cost, $params = array ()) {
+    public function create_market_buy_order_with_cost(string $symbol, float $cost, $params = array ()) {
         /**
          * create a $market buy order by providing the $symbol and $cost
          * @see https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
@@ -2188,7 +2191,7 @@ class coinbase extends Exchange {
         return $this->create_order($symbol, 'market', 'buy', $cost, null, $params);
     }
 
-    public function create_order(string $symbol, string $type, string $side, $amount, $price = null, $params = array ()) {
+    public function create_order(string $symbol, string $type, string $side, float $amount, ?float $price = null, $params = array ()) {
         /**
          * create a trade order
          * @see https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
@@ -2207,6 +2210,7 @@ class coinbase extends Exchange {
          * @param {string} [$params->stop_direction] 'UNKNOWN_STOP_DIRECTION', 'STOP_DIRECTION_STOP_UP', 'STOP_DIRECTION_STOP_DOWN' the direction the $stopPrice is triggered from
          * @param {string} [$params->end_time] '2023-05-25T17:01:05.092Z' for 'GTD' orders
          * @param {float} [$params->cost] *spot $market buy only* the quote quantity that can be used alternative for the $amount
+         * @param {boolean} [$params->preview] default to false, wether to use the test/preview endpoint or not
          * @return {array} an ~@link https://docs.ccxt.com/#/?id=order-structure order structure~
          */
         $this->load_markets();
@@ -2336,7 +2340,15 @@ class coinbase extends Exchange {
             }
         }
         $params = $this->omit($params, array( 'timeInForce', 'triggerPrice', 'stopLossPrice', 'takeProfitPrice', 'stopPrice', 'stop_price', 'stopDirection', 'stop_direction', 'clientOrderId', 'postOnly', 'post_only', 'end_time' ));
-        $response = $this->v3PrivatePostBrokerageOrders (array_merge($request, $params));
+        $preview = $this->safe_value_2($params, 'preview', 'test', false);
+        $response = null;
+        if ($preview) {
+            $params = $this->omit($params, array( 'preview', 'test' ));
+            $request = $this->omit($request, 'client_order_id');
+            $response = $this->v3PrivatePostBrokerageOrdersPreview (array_merge($request, $params));
+        } else {
+            $response = $this->v3PrivatePostBrokerageOrders (array_merge($request, $params));
+        }
         //
         // successful order
         //
@@ -2607,7 +2619,7 @@ class coinbase extends Exchange {
         return $this->parse_orders($orders, $market);
     }
 
-    public function edit_order(string $id, $symbol, $type, $side, $amount = null, $price = null, $params = array ()) {
+    public function edit_order(string $id, string $symbol, string $type, string $side, ?float $amount = null, ?float $price = null, $params = array ()) {
         /**
          * edit a trade order
          * @see https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_editorder
@@ -2713,7 +2725,7 @@ class coinbase extends Exchange {
         return $this->parse_order($order, $market);
     }
 
-    public function fetch_orders(?string $symbol = null, ?int $since = null, $limit = 100, $params = array ()): array {
+    public function fetch_orders(?string $symbol = null, ?int $since = null, ?int $limit = 100, $params = array ()): array {
         /**
          * fetches information on multiple $orders made by the user
          * @see https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders
@@ -3214,7 +3226,7 @@ class coinbase extends Exchange {
         return $this->parse_tickers($tickers, $symbols);
     }
 
-    public function withdraw(string $code, $amount, $address, $tag = null, $params = array ()) {
+    public function withdraw(string $code, float $amount, $address, $tag = null, $params = array ()) {
         /**
          * make a withdrawal
          * @see https://docs.cloud.coinbase.com/sign-in-with-coinbase/docs/api-transactions#send-money

@@ -1079,7 +1079,7 @@ class hollaex(Exchange, ImplicitAPI):
             'average': None,
         }, market)
 
-    async def create_order(self, symbol: str, type: OrderType, side: OrderSide, amount, price=None, params={}):
+    async def create_order(self, symbol: str, type: OrderType, side: OrderSide, amount: float, price: float = None, params={}):
         """
         create a trade order
         :param str symbol: unified symbol of the market to create an order in
@@ -1277,7 +1277,7 @@ class hollaex(Exchange, ImplicitAPI):
             'info': depositAddress,
         }
 
-    async def fetch_deposit_addresses(self, codes=None, params={}):
+    async def fetch_deposit_addresses(self, codes: List[str] = None, params={}):
         """
         fetch deposit addresses for multiple currencies and chain types
         :param str[]|None codes: list of unified currency codes, default is None
@@ -1584,7 +1584,7 @@ class hollaex(Exchange, ImplicitAPI):
             'fee': fee,
         }
 
-    async def withdraw(self, code: str, amount, address, tag=None, params={}):
+    async def withdraw(self, code: str, amount: float, address, tag=None, params={}):
         """
         make a withdrawal
         :param str code: unified currency code

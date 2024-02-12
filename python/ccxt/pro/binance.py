@@ -2674,7 +2674,7 @@ class binance(ccxt.async_support.binance):
             requestId = self.safe_string(message, 'id')
             if requestId is not None:
                 self.handle_subscription_status(client, message)
-              <<<  return
+                return
             # special case for the real-time bookTicker, since it comes without an event identifier
             #
             #     {

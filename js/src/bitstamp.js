@@ -88,6 +88,7 @@ export default class bitstamp extends Exchange {
                 'setLeverage': false,
                 'setMarginMode': false,
                 'setPositionMode': false,
+                'transfer': true,
                 'withdraw': true,
             },
             'urls': {
@@ -1121,16 +1122,18 @@ export default class bitstamp extends Exchange {
             'timestamp': undefined,
             'datetime': undefined,
         };
-        const codes = Object.keys(this.currencies);
-        for (let i = 0; i < codes.length; i++) {
-            const code = codes[i];
-            const currency = this.currency(code);
-            const currencyId = currency['id'];
+        if (response === undefined) {
+            response = [];
+        }
+        for (let i = 0; i < response.length; i++) {
+            const currencyBalance = response[i];
+            const currencyId = this.safeString(currencyBalance, 'currency');
+            const currencyCode = this.safeCurrencyCode(currencyId);
             const account = this.account();
-            account['free'] = this.safeString(response, currencyId + '_available');
-            account['used'] = this.safeString(response, currencyId + '_reserved');
-            account['total'] = this.safeString(response, currencyId + '_balance');
-            result[code] = account;
+            account['free'] = this.safeString(currencyBalance, 'available');
+            account['used'] = this.safeString(currencyBalance, 'reserved');
+            account['total'] = this.safeString(currencyBalance, 'total');
+            result[currencyCode] = account;
         }
         return this.safeBalance(result);
     }
@@ -1144,24 +1147,17 @@ export default class bitstamp extends Exchange {
          * @returns {object} a [balance structure]{@link https://docs.ccxt.com/#/?id=balance-structure}
          */
         await this.loadMarkets();
-        const response = await this.privatePostBalance(params);
+        const response = await this.privatePostAccountBalances(params);
         //
-        //     {
-        //         "aave_available": "0.00000000",
-        //         "aave_balance": "0.00000000",
-        //         "aave_reserved": "0.00000000",
-        //         "aave_withdrawal_fee": "0.07000000",
-        //         "aavebtc_fee": "0.000",
-        //         "aaveeur_fee": "0.000",
-        //         "aaveusd_fee": "0.000",
-        //         "bat_available": "0.00000000",
-        //         "bat_balance": "0.00000000",
-        //         "bat_reserved": "0.00000000",
-        //         "bat_withdrawal_fee": "5.00000000",
-        //         "batbtc_fee": "0.000",
-        //         "bateur_fee": "0.000",
-        //         "batusd_fee": "0.000",
-        //     }
+        //     [
+        //         {
+        //             "currency": "usdt",
+        //             "total": "7.00000",
+        //             "available": "7.00000",
+        //             "reserved": "0.00000"
+        //         },
+        //         ...
+        //     ]
         //
         return this.parseBalance(response);
     }
@@ -2121,6 +2117,73 @@ export default class bitstamp extends Exchange {
         }
         const response = await this[method](this.extend(request, params));
         return this.parseTransaction(response, currency);
+    }
+    async transfer(code, amount, fromAccount, toAccount, params = {}) {
+        /**
+         * @method
+         * @name bitstamp#transfer
+         * @description transfer currency internally between wallets on the same account
+         * @see https://www.bitstamp.net/api/#tag/Sub-account/operation/TransferFromMainToSub
+         * @see https://www.bitstamp.net/api/#tag/Sub-account/operation/TransferFromSubToMain
+         * @param {string} code unified currency code
+         * @param {float} amount amount to transfer
+         * @param {string} fromAccount account to transfer from
+         * @param {string} toAccount account to transfer to
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [transfer structure]{@link https://docs.ccxt.com/#/?id=transfer-structure}
+         */
+        await this.loadMarkets();
+        const currency = this.currency(code);
+        amount = this.currencyToPrecision(code, amount);
+        amount = this.parseToNumeric(amount);
+        const request = {
+            'amount': amount,
+            'currency': currency['id'].toUpperCase(),
+        };
+        let response = undefined;
+        if (fromAccount === 'main') {
+            request['subAccount'] = toAccount;
+            response = await this.privatePostTransferFromMain(this.extend(request, params));
+        }
+        else if (toAccount === 'main') {
+            request['subAccount'] = fromAccount;
+            response = await this.privatePostTransferToMain(this.extend(request, params));
+        }
+        else {
+            throw new BadRequest(this.id + ' transfer() only supports from or to main');
+        }
+        //
+        //    { status: 'ok' }
+        //
+        const transfer = this.parseTransfer(response, currency);
+        transfer['amount'] = amount;
+        transfer['fromAccount'] = fromAccount;
+        transfer['toAccount'] = toAccount;
+        return transfer;
+    }
+    parseTransfer(transfer, currency = undefined) {
+        //
+        //    { status: 'ok' }
+        //
+        const status = this.safeString(transfer, 'status');
+        return {
+            'info': transfer,
+            'id': undefined,
+            'timestamp': undefined,
+            'datetime': undefined,
+            'currency': currency['code'],
+            'amount': undefined,
+            'fromAccount': undefined,
+            'toAccount': undefined,
+            'status': this.parseTransferStatus(status),
+        };
+    }
+    parseTransferStatus(status) {
+        const statuses = {
+            'ok': 'ok',
+            'error': 'failed',
+        };
+        return this.safeString(statuses, status, status);
     }
     nonce() {
         return this.milliseconds();

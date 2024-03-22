@@ -77,6 +77,7 @@ public partial class bitstamp : Exchange
                 { "setLeverage", false },
                 { "setMarginMode", false },
                 { "setPositionMode", false },
+                { "transfer", true },
                 { "withdraw", true },
             } },
             { "urls", new Dictionary<string, object>() {
@@ -1125,17 +1126,20 @@ public partial class bitstamp : Exchange
             { "timestamp", null },
             { "datetime", null },
         };
-        object codes = new List<object>(((IDictionary<string,object>)this.currencies).Keys);
-        for (object i = 0; isLessThan(i, getArrayLength(codes)); postFixIncrement(ref i))
+        if (isTrue(isEqual(response, null)))
         {
-            object code = getValue(codes, i);
-            object currency = this.currency(code);
-            object currencyId = getValue(currency, "id");
+            response = new List<object>() {};
+        }
+        for (object i = 0; isLessThan(i, getArrayLength(response)); postFixIncrement(ref i))
+        {
+            object currencyBalance = getValue(response, i);
+            object currencyId = this.safeString(currencyBalance, "currency");
+            object currencyCode = this.safeCurrencyCode(currencyId);
             object account = this.account();
-            ((IDictionary<string,object>)account)["free"] = this.safeString(response, add(currencyId, "_available"));
-            ((IDictionary<string,object>)account)["used"] = this.safeString(response, add(currencyId, "_reserved"));
-            ((IDictionary<string,object>)account)["total"] = this.safeString(response, add(currencyId, "_balance"));
-            ((IDictionary<string,object>)result)[(string)code] = account;
+            ((IDictionary<string,object>)account)["free"] = this.safeString(currencyBalance, "available");
+            ((IDictionary<string,object>)account)["used"] = this.safeString(currencyBalance, "reserved");
+            ((IDictionary<string,object>)account)["total"] = this.safeString(currencyBalance, "total");
+            ((IDictionary<string,object>)result)[(string)currencyCode] = account;
         }
         return this.safeBalance(result);
     }
@@ -1152,24 +1156,17 @@ public partial class bitstamp : Exchange
         */
         parameters ??= new Dictionary<string, object>();
         await this.loadMarkets();
-        object response = await this.privatePostBalance(parameters);
+        object response = await this.privatePostAccountBalances(parameters);
         //
-        //     {
-        //         "aave_available": "0.00000000",
-        //         "aave_balance": "0.00000000",
-        //         "aave_reserved": "0.00000000",
-        //         "aave_withdrawal_fee": "0.07000000",
-        //         "aavebtc_fee": "0.000",
-        //         "aaveeur_fee": "0.000",
-        //         "aaveusd_fee": "0.000",
-        //         "bat_available": "0.00000000",
-        //         "bat_balance": "0.00000000",
-        //         "bat_reserved": "0.00000000",
-        //         "bat_withdrawal_fee": "5.00000000",
-        //         "batbtc_fee": "0.000",
-        //         "bateur_fee": "0.000",
-        //         "batusd_fee": "0.000",
-        //     }
+        //     [
+        //         {
+        //             "currency": "usdt",
+        //             "total": "7.00000",
+        //             "available": "7.00000",
+        //             "reserved": "0.00000"
+        //         },
+        //         ...
+        //     ]
         //
         return this.parseBalance(response);
     }
@@ -2253,6 +2250,81 @@ public partial class bitstamp : Exchange
         }
         object response = await ((Task<object>)callDynamically(this, method, new object[] { this.extend(request, parameters) }));
         return this.parseTransaction(response, currency);
+    }
+
+    public async override Task<object> transfer(object code, object amount, object fromAccount, object toAccount, object parameters = null)
+    {
+        /**
+        * @method
+        * @name bitstamp#transfer
+        * @description transfer currency internally between wallets on the same account
+        * @see https://www.bitstamp.net/api/#tag/Sub-account/operation/TransferFromMainToSub
+        * @see https://www.bitstamp.net/api/#tag/Sub-account/operation/TransferFromSubToMain
+        * @param {string} code unified currency code
+        * @param {float} amount amount to transfer
+        * @param {string} fromAccount account to transfer from
+        * @param {string} toAccount account to transfer to
+        * @param {object} [params] extra parameters specific to the exchange API endpoint
+        * @returns {object} a [transfer structure]{@link https://docs.ccxt.com/#/?id=transfer-structure}
+        */
+        parameters ??= new Dictionary<string, object>();
+        await this.loadMarkets();
+        object currency = this.currency(code);
+        amount = this.currencyToPrecision(code, amount);
+        amount = this.parseToNumeric(amount);
+        object request = new Dictionary<string, object>() {
+            { "amount", amount },
+            { "currency", ((string)getValue(currency, "id")).ToUpper() },
+        };
+        object response = null;
+        if (isTrue(isEqual(fromAccount, "main")))
+        {
+            ((IDictionary<string,object>)request)["subAccount"] = toAccount;
+            response = await this.privatePostTransferFromMain(this.extend(request, parameters));
+        } else if (isTrue(isEqual(toAccount, "main")))
+        {
+            ((IDictionary<string,object>)request)["subAccount"] = fromAccount;
+            response = await this.privatePostTransferToMain(this.extend(request, parameters));
+        } else
+        {
+            throw new BadRequest ((string)add(this.id, " transfer() only supports from or to main")) ;
+        }
+        //
+        //    { status: 'ok' }
+        //
+        object transfer = this.parseTransfer(response, currency);
+        ((IDictionary<string,object>)transfer)["amount"] = amount;
+        ((IDictionary<string,object>)transfer)["fromAccount"] = fromAccount;
+        ((IDictionary<string,object>)transfer)["toAccount"] = toAccount;
+        return transfer;
+    }
+
+    public override object parseTransfer(object transfer, object currency = null)
+    {
+        //
+        //    { status: 'ok' }
+        //
+        object status = this.safeString(transfer, "status");
+        return new Dictionary<string, object>() {
+            { "info", transfer },
+            { "id", null },
+            { "timestamp", null },
+            { "datetime", null },
+            { "currency", getValue(currency, "code") },
+            { "amount", null },
+            { "fromAccount", null },
+            { "toAccount", null },
+            { "status", this.parseTransferStatus(status) },
+        };
+    }
+
+    public virtual object parseTransferStatus(object status)
+    {
+        object statuses = new Dictionary<string, object>() {
+            { "ok", "ok" },
+            { "error", "failed" },
+        };
+        return this.safeString(statuses, status, status);
     }
 
     public override object nonce()

@@ -6,7 +6,7 @@
 from ccxt.async_support.base.exchange import Exchange
 from ccxt.abstract.bitstamp import ImplicitAPI
 import hashlib
-from ccxt.base.types import Balances, Currency, Int, Market, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade, Transaction
+from ccxt.base.types import Balances, Currency, Int, Market, Num, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade, Transaction, TransferEntry
 from typing import List
 from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import PermissionDenied
@@ -98,6 +98,7 @@ class bitstamp(Exchange, ImplicitAPI):
                 'setLeverage': False,
                 'setMarginMode': False,
                 'setPositionMode': False,
+                'transfer': True,
                 'withdraw': True,
             },
             'urls': {
@@ -1081,16 +1082,17 @@ class bitstamp(Exchange, ImplicitAPI):
             'timestamp': None,
             'datetime': None,
         }
-        codes = list(self.currencies.keys())
-        for i in range(0, len(codes)):
-            code = codes[i]
-            currency = self.currency(code)
-            currencyId = currency['id']
+        if response is None:
+            response = []
+        for i in range(0, len(response)):
+            currencyBalance = response[i]
+            currencyId = self.safe_string(currencyBalance, 'currency')
+            currencyCode = self.safe_currency_code(currencyId)
             account = self.account()
-            account['free'] = self.safe_string(response, currencyId + '_available')
-            account['used'] = self.safe_string(response, currencyId + '_reserved')
-            account['total'] = self.safe_string(response, currencyId + '_balance')
-            result[code] = account
+            account['free'] = self.safe_string(currencyBalance, 'available')
+            account['used'] = self.safe_string(currencyBalance, 'reserved')
+            account['total'] = self.safe_string(currencyBalance, 'total')
+            result[currencyCode] = account
         return self.safe_balance(result)
 
     async def fetch_balance(self, params={}) -> Balances:
@@ -1101,24 +1103,17 @@ class bitstamp(Exchange, ImplicitAPI):
         :returns dict: a `balance structure <https://docs.ccxt.com/#/?id=balance-structure>`
         """
         await self.load_markets()
-        response = await self.privatePostBalance(params)
+        response = await self.privatePostAccountBalances(params)
         #
-        #     {
-        #         "aave_available": "0.00000000",
-        #         "aave_balance": "0.00000000",
-        #         "aave_reserved": "0.00000000",
-        #         "aave_withdrawal_fee": "0.07000000",
-        #         "aavebtc_fee": "0.000",
-        #         "aaveeur_fee": "0.000",
-        #         "aaveusd_fee": "0.000",
-        #         "bat_available": "0.00000000",
-        #         "bat_balance": "0.00000000",
-        #         "bat_reserved": "0.00000000",
-        #         "bat_withdrawal_fee": "5.00000000",
-        #         "batbtc_fee": "0.000",
-        #         "bateur_fee": "0.000",
-        #         "batusd_fee": "0.000",
-        #     }
+        #     [
+        #         {
+        #             "currency": "usdt",
+        #             "total": "7.00000",
+        #             "available": "7.00000",
+        #             "reserved": "0.00000"
+        #         },
+        #         ...
+        #     ]
         #
         return self.parse_balance(response)
 
@@ -1291,7 +1286,7 @@ class bitstamp(Exchange, ImplicitAPI):
                 result[code]['info'][id] = dictValue
         return result
 
-    async def create_order(self, symbol: str, type: OrderType, side: OrderSide, amount: float, price: float = None, params={}):
+    async def create_order(self, symbol: str, type: OrderType, side: OrderSide, amount: float, price: Num = None, params={}):
         """
         create a trade order
         :see: https://www.bitstamp.net/api/#tag/Orders/operation/OpenInstantBuyOrder
@@ -1982,6 +1977,68 @@ class bitstamp(Exchange, ImplicitAPI):
             request['account_currency'] = currency['id']
         response = await getattr(self, method)(self.extend(request, params))
         return self.parse_transaction(response, currency)
+
+    async def transfer(self, code: str, amount: float, fromAccount: str, toAccount: str, params={}) -> TransferEntry:
+        """
+        transfer currency internally between wallets on the same account
+        :see: https://www.bitstamp.net/api/#tag/Sub-account/operation/TransferFromMainToSub
+        :see: https://www.bitstamp.net/api/#tag/Sub-account/operation/TransferFromSubToMain
+        :param str code: unified currency code
+        :param float amount: amount to transfer
+        :param str fromAccount: account to transfer from
+        :param str toAccount: account to transfer to
+        :param dict [params]: extra parameters specific to the exchange API endpoint
+        :returns dict: a `transfer structure <https://docs.ccxt.com/#/?id=transfer-structure>`
+        """
+        await self.load_markets()
+        currency = self.currency(code)
+        amount = self.currency_to_precision(code, amount)
+        amount = self.parse_to_numeric(amount)
+        request = {
+            'amount': amount,
+            'currency': currency['id'].upper(),
+        }
+        response = None
+        if fromAccount == 'main':
+            request['subAccount'] = toAccount
+            response = await self.privatePostTransferFromMain(self.extend(request, params))
+        elif toAccount == 'main':
+            request['subAccount'] = fromAccount
+            response = await self.privatePostTransferToMain(self.extend(request, params))
+        else:
+            raise BadRequest(self.id + ' transfer() only supports from or to main')
+        #
+        #    {status: 'ok'}
+        #
+        transfer = self.parse_transfer(response, currency)
+        transfer['amount'] = amount
+        transfer['fromAccount'] = fromAccount
+        transfer['toAccount'] = toAccount
+        return transfer
+
+    def parse_transfer(self, transfer, currency=None):
+        #
+        #    {status: 'ok'}
+        #
+        status = self.safe_string(transfer, 'status')
+        return {
+            'info': transfer,
+            'id': None,
+            'timestamp': None,
+            'datetime': None,
+            'currency': currency['code'],
+            'amount': None,
+            'fromAccount': None,
+            'toAccount': None,
+            'status': self.parse_transfer_status(status),
+        }
+
+    def parse_transfer_status(self, status):
+        statuses = {
+            'ok': 'ok',
+            'error': 'failed',
+        }
+        return self.safe_string(statuses, status, status)
 
     def nonce(self):
         return self.milliseconds()

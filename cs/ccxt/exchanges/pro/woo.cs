@@ -75,7 +75,6 @@ public partial class woo : ccxt.woo
 
     public async virtual Task<object> watchPublic(object messageHash, object message)
     {
-        this.checkRequiredUid();
         object url = add(add(getValue(getValue(getValue(this.urls, "api"), "ws"), "public"), "/"), this.uid);
         object requestId = this.requestId(url);
         object subscribe = new Dictionary<string, object>() {
@@ -247,7 +246,7 @@ public partial class woo : ccxt.woo
         /**
         * @method
         * @name woo#watchTickers
-        * @description n watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for all markets of a specific list
+        * @description watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for all markets of a specific list
         * @param {string[]} symbols unified symbol of the market to fetch the ticker for
         * @param {object} [params] extra parameters specific to the exchange API endpoint
         * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}

@@ -80,7 +80,6 @@ class woo extends \ccxt\async\woo {
 
     public function watch_public($messageHash, $message) {
         return Async\async(function () use ($messageHash, $message) {
-            $this->check_required_uid();
             $url = $this->urls['api']['ws']['public'] . '/' . $this->uid;
             $requestId = $this->request_id($url);
             $subscribe = array(
@@ -243,7 +242,7 @@ class woo extends \ccxt\async\woo {
     public function watch_tickers(?array $symbols = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($symbols, $params) {
             /**
-             * n watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for all markets of a specific list
+             * watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for all markets of a specific list
              * @param {string[]} $symbols unified symbol of the market to fetch the ticker for
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=ticker-structure ticker structure~

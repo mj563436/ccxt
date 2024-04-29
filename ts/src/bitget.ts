@@ -6,7 +6,7 @@ import { ExchangeError, ExchangeNotAvailable, NotSupported, OnMaintenance, Argum
 import { Precise } from './base/Precise.js';
 import { TICK_SIZE } from './base/functions/number.js';
 import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
-import type { Int, OrderSide, OrderType, Trade, OHLCV, Order, FundingRateHistory, OrderRequest, FundingHistory, Balances, Str, Transaction, Ticker, OrderBook, Tickers, Market, Strings, Currency, Position, Liquidation, TransferEntry, Leverage, MarginMode, Num, MarginModification, TradingFeeInterface, Currencies, TradingFees, Conversion } from './base/types.js';
+import type { Int, OrderSide, OrderType, Trade, OHLCV, Order, FundingRateHistory, OrderRequest, FundingHistory, Balances, Str, Transaction, Ticker, OrderBook, Tickers, Market, Strings, Currency, Position, Liquidation, TransferEntry, Leverage, MarginMode, Num, MarginModification, TradingFeeInterface, Currencies, TradingFees, Conversion, CrossBorrowRate, IsolatedBorrowRate } from './base/types.js';
 
 //  ---------------------------------------------------------------------------
 
@@ -108,8 +108,10 @@ export default class bitget extends Exchange {
                 'fetchOrders': false,
                 'fetchOrderTrades': false,
                 'fetchPosition': true,
+                'fetchPositionHistory': 'emulated',
                 'fetchPositionMode': false,
                 'fetchPositions': true,
+                'fetchPositionsHistory': true,
                 'fetchPositionsRisk': false,
                 'fetchPremiumIndexOHLCV': false,
                 'fetchStatus': false,
@@ -2197,7 +2199,7 @@ export default class bitget extends Exchange {
         return this.parseTransactions (rawTransactions, currency, since, limit);
     }
 
-    async withdraw (code: string, amount: number, address, tag = undefined, params = {}) {
+    async withdraw (code: string, amount: number, address: string, tag = undefined, params = {}) {
         /**
          * @method
          * @name bitget#withdraw
@@ -3351,11 +3353,11 @@ export default class bitget extends Exchange {
             'symbol': market['id'],
             'granularity': this.safeString (timeframes, timeframe, timeframe),
         };
-        const until = this.safeInteger2 (params, 'until', 'till');
+        const until = this.safeInteger (params, 'until');
         const limitDefined = limit !== undefined;
         const sinceDefined = since !== undefined;
         const untilDefined = until !== undefined;
-        params = this.omit (params, [ 'until', 'till' ]);
+        params = this.omit (params, [ 'until' ]);
         let response = undefined;
         const now = this.milliseconds ();
         // retrievable periods listed here:
@@ -4564,6 +4566,9 @@ export default class bitget extends Exchange {
         params = this.omit (params, [ 'stopPrice', 'triggerType', 'stopLossPrice', 'takeProfitPrice', 'stopLoss', 'takeProfit', 'clientOrderId', 'trailingTriggerPrice', 'trailingPercent' ]);
         let response = undefined;
         if (market['spot']) {
+            if (triggerPrice === undefined) {
+                throw new NotSupported (this.id + 'editOrder() only supports plan/trigger spot orders');
+            }
             const editMarketBuyOrderRequiresPrice = this.safeBool (this.options, 'editMarketBuyOrderRequiresPrice', true);
             if (editMarketBuyOrderRequiresPrice && isMarketOrder && (side === 'buy')) {
                 if (price === undefined) {
@@ -5560,8 +5565,8 @@ export default class bitget extends Exchange {
                     if (symbol === undefined) {
                         throw new ArgumentsRequired (this.id + ' fetchCanceledAndClosedOrders() requires a symbol argument');
                     }
-                    const endTime = this.safeIntegerN (params, [ 'endTime', 'until', 'till' ]);
-                    params = this.omit (params, [ 'until', 'till' ]);
+                    const endTime = this.safeIntegerN (params, [ 'endTime', 'until' ]);
+                    params = this.omit (params, [ 'until' ]);
                     if (since === undefined) {
                         since = now - 7776000000;
                         request['startTime'] = since;
@@ -6451,7 +6456,7 @@ export default class bitget extends Exchange {
         //         "cTime": "1700807507275"
         //     }
         //
-        // fetchPositions: privateMixGetV2MixPositionHistoryPosition
+        // fetchPositionsHistory: privateMixGetV2MixPositionHistoryPosition
         //
         //     {
         //         "symbol": "BTCUSDT",
@@ -6904,7 +6909,7 @@ export default class bitget extends Exchange {
         };
     }
 
-    async reduceMargin (symbol: string, amount, params = {}): Promise<MarginModification> {
+    async reduceMargin (symbol: string, amount: number, params = {}): Promise<MarginModification> {
         /**
          * @method
          * @name bitget#reduceMargin
@@ -6925,7 +6930,7 @@ export default class bitget extends Exchange {
         return await this.modifyMarginHelper (symbol, amount, 'reduce', params);
     }
 
-    async addMargin (symbol: string, amount, params = {}): Promise<MarginModification> {
+    async addMargin (symbol: string, amount: number, params = {}): Promise<MarginModification> {
         /**
          * @method
          * @name bitget#addMargin
@@ -7861,7 +7866,7 @@ export default class bitget extends Exchange {
         });
     }
 
-    async fetchIsolatedBorrowRate (symbol: string, params = {}) {
+    async fetchIsolatedBorrowRate (symbol: string, params = {}): Promise<IsolatedBorrowRate> {
         /**
          * @method
          * @name bitget#fetchIsolatedBorrowRate
@@ -7925,7 +7930,7 @@ export default class bitget extends Exchange {
         return this.parseIsolatedBorrowRate (first, market);
     }
 
-    parseIsolatedBorrowRate (info, market: Market = undefined) {
+    parseIsolatedBorrowRate (info, market: Market = undefined): IsolatedBorrowRate {
         //
         //     {
         //         "symbol": "BTCUSDT",
@@ -7978,7 +7983,7 @@ export default class bitget extends Exchange {
         };
     }
 
-    async fetchCrossBorrowRate (code: string, params = {}) {
+    async fetchCrossBorrowRate (code: string, params = {}): Promise<CrossBorrowRate> {
         /**
          * @method
          * @name bitget#fetchCrossBorrowRate
@@ -8373,6 +8378,78 @@ export default class bitget extends Exchange {
         } as MarginMode;
     }
 
+    async fetchPositionsHistory (symbols: Strings = undefined, since: Int = undefined, limit: Int = undefined, params = {}): Promise<Position[]> {
+        /**
+         * @method
+         * @name bitget#fetchPositionsHistory
+         * @description fetches historical positions
+         * @see https://www.bitget.com/api-doc/contract/position/Get-History-Position
+         * @param {string[]} [symbols] unified contract symbols
+         * @param {int} [since] timestamp in ms of the earliest position to fetch, default=3 months ago, max range for params["until"] - since is 3 months
+         * @param {int} [limit] the maximum amount of records to fetch, default=20, max=100
+         * @param {object} params extra parameters specific to the exchange api endpoint
+         * @param {int} [params.until] timestamp in ms of the latest position to fetch, max range for params["until"] - since is 3 months
+         *
+         * EXCHANGE SPECIFIC PARAMETERS
+         * @param {string} [params.productType] USDT-FUTURES (default), COIN-FUTURES, USDC-FUTURES, SUSDT-FUTURES, SCOIN-FUTURES, or SUSDC-FUTURES
+         * @returns {object[]} a list of [position structures]{@link https://docs.ccxt.com/#/?id=position-structure}
+         */
+        await this.loadMarkets ();
+        const until = this.safeInteger (params, 'until');
+        params = this.omit (params, 'until');
+        const request = {};
+        if (symbols !== undefined) {
+            const symbolsLength = symbols.length;
+            if (symbolsLength > 0) {
+                const market = this.market (symbols[0]);
+                request['symbol'] = market['id'];
+            }
+        }
+        if (since !== undefined) {
+            request['startTime'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        if (until !== undefined) {
+            request['endTime'] = until;
+        }
+        const response = await this.privateMixGetV2MixPositionHistoryPosition (this.extend (request, params));
+        //
+        //    {
+        //        code: '00000',
+        //        msg: 'success',
+        //        requestTime: '1712794148791',
+        //        data: {
+        //            list: [
+        //                {
+        //                    symbol: 'XRPUSDT',
+        //                    marginCoin: 'USDT',
+        //                    holdSide: 'long',
+        //                    openAvgPrice: '0.64967',
+        //                    closeAvgPrice: '0.58799',
+        //                    marginMode: 'isolated',
+        //                    openTotalPos: '10',
+        //                    closeTotalPos: '10',
+        //                    pnl: '-0.62976205',
+        //                    netProfit: '-0.65356802',
+        //                    totalFunding: '-0.01638',
+        //                    openFee: '-0.00389802',
+        //                    closeFee: '-0.00352794',
+        //                    ctime: '1709590322199',
+        //                    utime: '1709667583395'
+        //                },
+        //                ...
+        //            ]
+        //        }
+        //    }
+        //
+        const data = this.safeDict (response, 'data');
+        const responseList = this.safeList (data, 'list');
+        const positions = this.parsePositions (responseList, symbols, params);
+        return this.filterBySinceLimit (positions, since, limit);
+    }
+
     async fetchConvertQuote (fromCode: string, toCode: string, amount: Num = undefined, params = {}): Promise<Conversion> {
         /**
          * @method
@@ -8525,7 +8602,7 @@ export default class bitget extends Exchange {
         //
         const data = this.safeDict (response, 'data', {});
         const dataList = this.safeList (data, 'dataList', []);
-        return this.parseConversions (dataList, 'fromCoin', 'toCoin', since, limit);
+        return this.parseConversions (dataList, code, 'fromCoin', 'toCoin', since, limit);
     }
 
     parseConversion (conversion, fromCurrency: Currency = undefined, toCurrency: Currency = undefined): Conversion {

@@ -147,7 +147,7 @@ class NewTranspiler {
                 "parser": {
                     "ELEMENT_ACCESS_WRAPPER_OPEN": "getValue(",
                     "ELEMENT_ACCESS_WRAPPER_CLOSE": ")",
-                    "VAR_TOKEN": "var",
+                    // "VAR_TOKEN": "var",
                 }
             },
         }
@@ -979,7 +979,7 @@ class NewTranspiler {
 
         if (csharpFolder) {
             overwriteFile (csharpFolder + csharpFilename, csharp)
-            fs.utimesSync (csharpFolder + csharpFilename, new Date (), new Date (tsMtime))
+            // fs.utimesSync (csharpFolder + csharpFilename, new Date (), new Date (tsMtime))
         }
     }
 

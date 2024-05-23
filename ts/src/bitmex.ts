@@ -90,6 +90,7 @@ export default class bitmex extends Exchange {
                 'fetchTransfer': false,
                 'fetchTransfers': false,
                 'reduceMargin': undefined,
+                'sandbox': true,
                 'setLeverage': true,
                 'setMargin': undefined,
                 'setMarginMode': true,
@@ -242,6 +243,7 @@ export default class bitmex extends Exchange {
                     'orderQty is invalid': InvalidOrder,
                     'Invalid price': InvalidOrder,
                     'Invalid stopPx for ordType': InvalidOrder,
+                    'Account is restricted': PermissionDenied, // {"error":{"message":"Account is restricted","name":"HTTPError"}}
                 },
                 'broad': {
                     'Signature not valid': AuthenticationError,
@@ -328,7 +330,7 @@ export default class bitmex extends Exchange {
         //        },
         //     }
         //
-        const result = {};
+        const result: Dict = {};
         for (let i = 0; i < response.length; i++) {
             const currency = response[i];
             const asset = this.safeString (currency, 'asset');
@@ -338,7 +340,7 @@ export default class bitmex extends Exchange {
             const chains = this.safeValue (currency, 'networks', []);
             let depositEnabled = false;
             let withdrawEnabled = false;
-            const networks = {};
+            const networks: Dict = {};
             const scale = this.safeString (currency, 'scale');
             const precisionString = this.parsePrecision (scale);
             const precision = this.parseNumber (precisionString);
@@ -758,7 +760,7 @@ export default class bitmex extends Exchange {
         //         }
         //     ]
         //
-        const result = { 'info': response };
+        const result: Dict = { 'info': response };
         for (let i = 0; i < response.length; i++) {
             const balance = response[i];
             const currencyId = this.safeString (balance, 'currency');
@@ -783,7 +785,7 @@ export default class bitmex extends Exchange {
          * @returns {object} a [balance structure]{@link https://docs.ccxt.com/#/?id=balance-structure}
          */
         await this.loadMarkets ();
-        const request = {
+        const request: Dict = {
             'currency': 'all',
         };
         const response = await this.privateGetUserMargin (this.extend (request, params));
@@ -850,14 +852,14 @@ export default class bitmex extends Exchange {
          */
         await this.loadMarkets ();
         const market = this.market (symbol);
-        const request = {
+        const request: Dict = {
             'symbol': market['id'],
         };
         if (limit !== undefined) {
             request['depth'] = limit;
         }
         const response = await this.publicGetOrderBookL2 (this.extend (request, params));
-        const result = {
+        const result: Dict = {
             'symbol': symbol,
             'bids': [],
             'asks': [],
@@ -892,7 +894,7 @@ export default class bitmex extends Exchange {
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} An [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
-        const filter = {
+        const filter: Dict = {
             'filter': {
                 'orderID': id,
             },
@@ -926,7 +928,7 @@ export default class bitmex extends Exchange {
             return await this.fetchPaginatedCallDynamic ('fetchOrders', symbol, since, limit, params, 100) as Order[];
         }
         let market = undefined;
-        let request = {};
+        let request: Dict = {};
         if (symbol !== undefined) {
             market = this.market (symbol);
             request['symbol'] = market['id'];
@@ -965,7 +967,7 @@ export default class bitmex extends Exchange {
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {Order[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
-        const request = {
+        const request: Dict = {
             'filter': {
                 'open': true,
             },
@@ -1010,7 +1012,7 @@ export default class bitmex extends Exchange {
             return await this.fetchPaginatedCallDynamic ('fetchMyTrades', symbol, since, limit, params, 100) as Trade[];
         }
         let market = undefined;
-        let request = {};
+        let request: Dict = {};
         if (symbol !== undefined) {
             market = this.market (symbol);
             request['symbol'] = market['id'];
@@ -1091,7 +1093,7 @@ export default class bitmex extends Exchange {
     }
 
     parseLedgerEntryType (type) {
-        const types = {
+        const types: Dict = {
             'Withdrawal': 'transaction',
             'RealisedPNL': 'margin',
             'UnrealisedPNL': 'margin',
@@ -1214,7 +1216,7 @@ export default class bitmex extends Exchange {
          * @returns {object} a [ledger structure]{@link https://docs.ccxt.com/#/?id=ledger-structure}
          */
         await this.loadMarkets ();
-        const request = {
+        const request: Dict = {
             // 'start': 123,
         };
         //
@@ -1267,7 +1269,7 @@ export default class bitmex extends Exchange {
          * @returns {object} a list of [transaction structure]{@link https://docs.ccxt.com/#/?id=transaction-structure}
          */
         await this.loadMarkets ();
-        const request = {
+        const request: Dict = {
             'currency': 'all',
             // 'start': 123,
         };
@@ -1290,7 +1292,7 @@ export default class bitmex extends Exchange {
     }
 
     parseTransactionStatus (status) {
-        const statuses = {
+        const statuses: Dict = {
             'Confirmed': 'pending',
             'Canceled': 'canceled',
             'Completed': 'ok',
@@ -1387,7 +1389,7 @@ export default class bitmex extends Exchange {
          */
         await this.loadMarkets ();
         const market = this.market (symbol);
-        const request = {
+        const request: Dict = {
             'symbol': market['id'],
         };
         const response = await this.publicGetInstrument (this.extend (request, params));
@@ -1412,7 +1414,7 @@ export default class bitmex extends Exchange {
         symbols = this.marketSymbols (symbols);
         const response = await this.publicGetInstrumentActiveAndIndices (params);
         // same response as under "fetchMarkets"
-        const result = {};
+        const result: Dict = {};
         for (let i = 0; i < response.length; i++) {
             const ticker = this.parseTicker (response[i]);
             const symbol = this.safeString (ticker, 'symbol');
@@ -1423,7 +1425,7 @@ export default class bitmex extends Exchange {
         return this.filterByArrayTickers (result, 'symbol', symbols);
     }
 
-    parseTicker (ticker, market: Market = undefined): Ticker {
+    parseTicker (ticker: Dict, market: Market = undefined): Ticker {
         // see response sample under "fetchMarkets" because same endpoint is being used here
         const marketId = this.safeString (ticker, 'symbol');
         const symbol = this.safeSymbol (marketId, market);
@@ -1507,12 +1509,12 @@ export default class bitmex extends Exchange {
         }
         // send JSON key/value pairs, such as {"key": "value"}
         // filter by individual fields and do advanced queries on timestamps
-        // let filter = { 'key': 'value' };
+        // let filter: Dict = { 'key': 'value' };
         // send a bare series (e.g. XBU) to nearest expiring contract in that series
         // you can also send a timeframe, e.g. XBU:monthly
         // timeframes: daily, weekly, monthly, quarterly, and biquarterly
         const market = this.market (symbol);
-        const request = {
+        const request: Dict = {
             'symbol': market['id'],
             'binSize': this.safeString (this.timeframes, timeframe, timeframe),
             'partial': true,     // true == include yet-incomplete current bins
@@ -1676,8 +1678,8 @@ export default class bitmex extends Exchange {
         }, market);
     }
 
-    parseOrderStatus (status) {
-        const statuses = {
+    parseOrderStatus (status: Str) {
+        const statuses: Dict = {
             'New': 'open',
             'PartiallyFilled': 'open',
             'Filled': 'closed',
@@ -1695,7 +1697,7 @@ export default class bitmex extends Exchange {
     }
 
     parseTimeInForce (timeInForce) {
-        const timeInForces = {
+        const timeInForces: Dict = {
             'Day': 'Day',
             'GoodTillCancel': 'GTC',
             'ImmediateOrCancel': 'IOC',
@@ -1822,7 +1824,7 @@ export default class bitmex extends Exchange {
             return await this.fetchPaginatedCallDynamic ('fetchTrades', symbol, since, limit, params) as Trade[];
         }
         const market = this.market (symbol);
-        const request = {
+        const request: Dict = {
             'symbol': market['id'],
         };
         if (since !== undefined) {
@@ -1899,7 +1901,7 @@ export default class bitmex extends Exchange {
         }
         const brokerId = this.safeString (this.options, 'brokerId', 'CCXT');
         const qty = this.parseToInt (this.amountToPrecision (symbol, amount));
-        const request = {
+        const request: Dict = {
             'symbol': market['id'],
             'side': this.capitalize (side),
             'orderQty': qty, // lot size multiplied by the number of contracts
@@ -1962,7 +1964,7 @@ export default class bitmex extends Exchange {
 
     async editOrder (id: string, symbol: string, type: OrderType, side: OrderSide, amount: Num = undefined, price: Num = undefined, params = {}) {
         await this.loadMarkets ();
-        const request = {};
+        const request: Dict = {};
         let trailingAmount = this.safeString2 (params, 'trailingAmount', 'pegOffsetValue');
         const isTrailingAmountOrder = trailingAmount !== undefined;
         if (isTrailingAmountOrder) {
@@ -2031,7 +2033,7 @@ export default class bitmex extends Exchange {
         await this.loadMarkets ();
         // https://github.com/ccxt/ccxt/issues/6507
         const clientOrderId = this.safeValue2 (params, 'clOrdID', 'clientOrderId');
-        const request = {};
+        const request: Dict = {};
         if (clientOrderId === undefined) {
             request['orderID'] = id;
         } else {
@@ -2064,7 +2066,7 @@ export default class bitmex extends Exchange {
         await this.loadMarkets ();
         // https://github.com/ccxt/ccxt/issues/6507
         const clientOrderId = this.safeValue2 (params, 'clOrdID', 'clientOrderId');
-        const request = {};
+        const request: Dict = {};
         if (clientOrderId === undefined) {
             request['orderID'] = ids;
         } else {
@@ -2086,7 +2088,7 @@ export default class bitmex extends Exchange {
          * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
         await this.loadMarkets ();
-        const request = {};
+        const request: Dict = {};
         let market = undefined;
         if (symbol !== undefined) {
             market = this.market (symbol);
@@ -2174,7 +2176,7 @@ export default class bitmex extends Exchange {
         return this.parseLeverages (leverages, symbols, 'symbol');
     }
 
-    parseLeverage (leverage, market = undefined): Leverage {
+    parseLeverage (leverage: Dict, market: Market = undefined): Leverage {
         const marketId = this.safeString (leverage, 'symbol');
         return {
             'info': leverage,
@@ -2465,7 +2467,7 @@ export default class bitmex extends Exchange {
         const qty = this.convertFromRealAmount (code, amount);
         let networkCode = undefined;
         [ networkCode, params ] = this.handleNetworkCodeAndParams (params);
-        const request = {
+        const request: Dict = {
             'currency': currency['id'],
             'amount': qty,
             'address': address,
@@ -2566,7 +2568,7 @@ export default class bitmex extends Exchange {
          * @returns {object[]} a list of [funding rate structures]{@link https://docs.ccxt.com/#/?id=funding-rate-history-structure}
          */
         await this.loadMarkets ();
-        const request = {};
+        const request: Dict = {};
         let market = undefined;
         if (symbol in this.currencies) {
             const code = this.currency (symbol);
@@ -2656,7 +2658,7 @@ export default class bitmex extends Exchange {
         if (market['type'] !== 'swap' && market['type'] !== 'future') {
             throw new BadSymbol (this.id + ' setLeverage() supports future and swap contracts only');
         }
-        const request = {
+        const request: Dict = {
             'symbol': market['id'],
             'leverage': leverage,
         };
@@ -2687,7 +2689,7 @@ export default class bitmex extends Exchange {
             throw new BadSymbol (this.id + ' setMarginMode() supports swap and future contracts only');
         }
         const enabled = (marginMode === 'cross') ? false : true;
-        const request = {
+        const request: Dict = {
             'symbol': market['id'],
             'enabled': enabled,
         };
@@ -2713,7 +2715,7 @@ export default class bitmex extends Exchange {
         }
         const currency = this.currency (code);
         params = this.omit (params, 'network');
-        const request = {
+        const request: Dict = {
             'currency': currency['id'],
             'network': this.networkCodeToId (networkCode, currency['code']),
         };
@@ -2759,7 +2761,7 @@ export default class bitmex extends Exchange {
         //
         const networks = this.safeValue (fee, 'networks', []);
         const networksLength = networks.length;
-        const result = {
+        const result: Dict = {
             'info': fee,
             'withdraw': {
                 'fee': undefined,
@@ -2872,7 +2874,7 @@ export default class bitmex extends Exchange {
             return await this.fetchPaginatedCallDynamic ('fetchLiquidations', symbol, since, limit, params) as Liquidation[];
         }
         const market = this.market (symbol);
-        let request = {
+        let request: Dict = {
             'symbol': market['id'],
         };
         if (since !== undefined) {

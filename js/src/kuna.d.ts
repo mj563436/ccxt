@@ -1,5 +1,5 @@
 import Exchange from './abstract/kuna.js';
-import type { Balances, Currencies, Currency, Int, Market, Num, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade, Transaction } from './base/types.js';
+import type { Balances, Currencies, Currency, Dict, Int, Market, Num, Order, OrderBook, OrderSide, OrderType, Str, Strings, Ticker, Tickers, Trade, Transaction } from './base/types.js';
 /**
  * @class kuna
  * @augments Exchange
@@ -9,7 +9,7 @@ export default class kuna extends Exchange {
     describe(): any;
     fetchTime(params?: {}): Promise<number>;
     fetchCurrencies(params?: {}): Promise<Currencies>;
-    parseCurrencies(currencies: any, params?: {}): {};
+    parseCurrencies(currencies: any, params?: {}): Dict;
     parseCurrency(currency: any): {
         info: any;
         id: string;
@@ -21,7 +21,7 @@ export default class kuna extends Exchange {
         deposit: any;
         withdraw: any;
         fee: any;
-        precision: any;
+        precision: string;
         limits: {
             amount: {
                 min: any;
@@ -36,7 +36,7 @@ export default class kuna extends Exchange {
     };
     fetchMarkets(params?: {}): Promise<Market[]>;
     fetchOrderBook(symbol: string, limit?: Int, params?: {}): Promise<OrderBook>;
-    parseTicker(ticker: any, market?: Market): Ticker;
+    parseTicker(ticker: Dict, market?: Market): Ticker;
     fetchTickers(symbols?: Strings, params?: {}): Promise<Tickers>;
     fetchTicker(symbol: string, params?: {}): Promise<Ticker>;
     fetchL3OrderBook(symbol: string, limit?: Int, params?: {}): Promise<OrderBook>;
@@ -47,7 +47,7 @@ export default class kuna extends Exchange {
     createOrder(symbol: string, type: OrderType, side: OrderSide, amount: number, price?: Num, params?: {}): Promise<Order>;
     cancelOrder(id: string, symbol?: Str, params?: {}): Promise<Order>;
     cancelOrders(ids: string[], symbol?: Str, params?: {}): Promise<Order[]>;
-    parseOrderStatus(status: any): string;
+    parseOrderStatus(status: Str): string;
     parseOrder(order: any, market?: Market): Order;
     fetchOrder(id: string, symbol?: Str, params?: {}): Promise<Order>;
     fetchOpenOrders(symbol?: Str, since?: Int, limit?: Int, params?: {}): Promise<Order[]>;

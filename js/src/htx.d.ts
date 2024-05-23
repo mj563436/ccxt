@@ -1,5 +1,5 @@
 import Exchange from './abstract/htx.js';
-import type { TransferEntry, Int, OrderSide, OrderType, Order, OHLCV, Trade, FundingRateHistory, Balances, Str, Transaction, Ticker, OrderBook, Tickers, OrderRequest, Strings, Market, Currency, Num, Account, TradingFeeInterface, Currencies, IsolatedBorrowRates, IsolatedBorrowRate } from './base/types.js';
+import type { TransferEntry, Int, OrderSide, OrderType, Order, OHLCV, Trade, FundingRateHistory, Balances, Str, Dict, Transaction, Ticker, OrderBook, Tickers, OrderRequest, Strings, Market, Currency, Num, Account, TradingFeeInterface, Currencies, IsolatedBorrowRates, IsolatedBorrowRate } from './base/types.js';
 /**
  * @class huobi
  * @augments Exchange
@@ -16,7 +16,7 @@ export default class htx extends Exchange {
     fetchTime(params?: {}): Promise<number>;
     parseTradingFee(fee: any, market?: Market): TradingFeeInterface;
     fetchTradingFee(symbol: string, params?: {}): Promise<TradingFeeInterface>;
-    fetchTradingLimits(symbols?: Strings, params?: {}): Promise<{}>;
+    fetchTradingLimits(symbols?: Strings, params?: {}): Promise<Dict>;
     fetchTradingLimitsById(id: string, params?: {}): Promise<{
         info: any;
         limits: {
@@ -35,11 +35,11 @@ export default class htx extends Exchange {
             };
         };
     };
-    costToPrecision(symbol: any, cost: any): any;
+    costToPrecision(symbol: any, cost: any): string;
     fetchMarkets(params?: {}): Promise<Market[]>;
     fetchMarketsByTypeAndSubType(type: any, subType: any, params?: {}): Promise<any[]>;
     tryGetSymbolFromFutureMarkets(symbolOrMarketId: string): any;
-    parseTicker(ticker: any, market?: Market): Ticker;
+    parseTicker(ticker: Dict, market?: Market): Ticker;
     fetchTicker(symbol: string, params?: {}): Promise<Ticker>;
     fetchTickers(symbols?: Strings, params?: {}): Promise<Tickers>;
     fetchLastPrices(symbols?: Strings, params?: {}): Promise<import("./base/types.js").LastPrices>;
@@ -68,8 +68,8 @@ export default class htx extends Exchange {
     };
     fetchAccountIdByType(type: any, marginMode?: any, symbol?: any, params?: {}): Promise<any>;
     fetchCurrencies(params?: {}): Promise<Currencies>;
-    networkIdToCode(networkId: any, currencyCode?: any): string;
-    networkCodeToId(networkCode: any, currencyCode?: any): any;
+    networkIdToCode(networkId?: Str, currencyCode?: Str): string;
+    networkCodeToId(networkCode: string, currencyCode?: Str): any;
     fetchBalance(params?: {}): Promise<Balances>;
     fetchOrder(id: string, symbol?: Str, params?: {}): Promise<Order>;
     parseMarginBalanceHelper(balance: any, code: any, result: any): any;
@@ -81,7 +81,7 @@ export default class htx extends Exchange {
     fetchOrders(symbol?: Str, since?: Int, limit?: Int, params?: {}): Promise<Order[]>;
     fetchClosedOrders(symbol?: Str, since?: Int, limit?: Int, params?: {}): Promise<Order[]>;
     fetchOpenOrders(symbol?: Str, since?: Int, limit?: Int, params?: {}): Promise<Order[]>;
-    parseOrderStatus(status: any): string;
+    parseOrderStatus(status: Str): string;
     parseOrder(order: any, market?: Market): Order;
     createMarketBuyOrderWithCost(symbol: string, cost: number, params?: {}): Promise<Order>;
     createTrailingPercentOrder(symbol: string, type: OrderType, side: OrderSide, amount: number, price?: Num, trailingPercent?: any, trailingTriggerPrice?: any, params?: {}): Promise<Order>;
@@ -109,17 +109,7 @@ export default class htx extends Exchange {
     parseTransaction(transaction: any, currency?: Currency): Transaction;
     parseTransactionStatus(status: any): string;
     withdraw(code: string, amount: number, address: string, tag?: any, params?: {}): Promise<Transaction>;
-    parseTransfer(transfer: any, currency?: Currency): {
-        info: any;
-        id: string;
-        timestamp: any;
-        datetime: any;
-        currency: string;
-        amount: any;
-        fromAccount: any;
-        toAccount: any;
-        status: any;
-    };
+    parseTransfer(transfer: Dict, currency?: Currency): TransferEntry;
     transfer(code: string, amount: number, fromAccount: string, toAccount: string, params?: {}): Promise<TransferEntry>;
     fetchIsolatedBorrowRates(params?: {}): Promise<IsolatedBorrowRates>;
     parseIsolatedBorrowRate(info: any, market?: Market): IsolatedBorrowRate;
@@ -216,9 +206,9 @@ export default class htx extends Exchange {
         info: any;
     };
     fetchLedger(code?: Str, since?: Int, limit?: Int, params?: {}): Promise<any>;
-    fetchLeverageTiers(symbols?: Strings, params?: {}): Promise<{}>;
+    fetchLeverageTiers(symbols?: Strings, params?: {}): Promise<Dict>;
     fetchMarketLeverageTiers(symbol: string, params?: {}): Promise<any>;
-    parseLeverageTiers(response: any, symbols?: Strings, marketIdKey?: any): {};
+    parseLeverageTiers(response: any, symbols?: Strings, marketIdKey?: any): Dict;
     fetchOpenInterestHistory(symbol: string, timeframe?: string, since?: Int, limit?: Int, params?: {}): Promise<import("./base/types.js").OpenInterest[]>;
     fetchOpenInterest(symbol: string, params?: {}): Promise<import("./base/types.js").OpenInterest>;
     parseOpenInterest(interest: any, market?: Market): import("./base/types.js").OpenInterest;

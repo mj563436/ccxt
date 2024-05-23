@@ -2,7 +2,7 @@
 
 # -----------------------------------------------------------------------------
 
-__version__ = '4.3.11'
+__version__ = '4.3.30'
 
 # -----------------------------------------------------------------------------
 
@@ -839,7 +839,7 @@ class Exchange(BaseExchange):
         await self.cancelOrder(id, symbol)
         return await self.create_order(symbol, type, side, amount, price, params)
 
-    async def edit_order_ws(self, id: str, symbol: str, type: OrderType, side: OrderSide, amount: float, price: Num = None, params={}):
+    async def edit_order_ws(self, id: str, symbol: str, type: OrderType, side: OrderSide, amount: Num = None, price: Num = None, params={}):
         await self.cancelOrderWs(id, symbol)
         return await self.createOrderWs(symbol, type, side, amount, price, params)
 
@@ -888,7 +888,7 @@ class Exchange(BaseExchange):
     async def fetch_positions_risk(self, symbols: List[str] = None, params={}):
         raise NotSupported(self.id + ' fetchPositionsRisk() is not supported yet')
 
-    async def fetch_bids_asks(self, symbols: List[str] = None, params={}):
+    async def fetch_bids_asks(self, symbols: Strings = None, params={}):
         raise NotSupported(self.id + ' fetchBidsAsks() is not supported yet')
 
     async def fetch_borrow_interest(self, code: Str = None, symbol: Str = None, since: Int = None, limit: Int = None, params={}):
@@ -1648,7 +1648,7 @@ class Exchange(BaseExchange):
         :returns float[][]: A list of candles ordered, open, high, low, close, None
         """
         if self.has['fetchMarkOHLCV']:
-            request = {
+            request: dict = {
                 'price': 'mark',
             }
             return await self.fetch_ohlcv(symbol, timeframe, since, limit, self.extend(request, params))
@@ -1666,7 +1666,7 @@ class Exchange(BaseExchange):
          * @returns {} A list of candles ordered, open, high, low, close, None
         """
         if self.has['fetchIndexOHLCV']:
-            request = {
+            request: dict = {
                 'price': 'index',
             }
             return await self.fetch_ohlcv(symbol, timeframe, since, limit, self.extend(request, params))
@@ -1684,7 +1684,7 @@ class Exchange(BaseExchange):
         :returns float[][]: A list of candles ordered, open, high, low, close, None
         """
         if self.has['fetchPremiumIndexOHLCV']:
-            request = {
+            request: dict = {
                 'price': 'premiumIndex',
             }
             return await self.fetch_ohlcv(symbol, timeframe, since, limit, self.extend(request, params))
@@ -1775,18 +1775,19 @@ class Exchange(BaseExchange):
         maxRetries = None
         maxRetries, params = self.handle_option_and_params(params, method, 'maxRetries', 3)
         errors = 0
-        try:
-            if timeframe and method != 'fetchFundingRateHistory':
-                return await getattr(self, method)(symbol, timeframe, since, limit, params)
-            else:
-                return await getattr(self, method)(symbol, since, limit, params)
-        except Exception as e:
-            if isinstance(e, RateLimitExceeded):
-                raise e  # if we are rate limited, we should not retry and fail fast
-            errors += 1
-            if errors > maxRetries:
-                raise e
-        return None
+        while(errors <= maxRetries):
+            try:
+                if timeframe and method != 'fetchFundingRateHistory':
+                    return await getattr(self, method)(symbol, timeframe, since, limit, params)
+                else:
+                    return await getattr(self, method)(symbol, since, limit, params)
+            except Exception as e:
+                if isinstance(e, RateLimitExceeded):
+                    raise e  # if we are rate limited, we should not retry and fail fast
+                errors += 1
+                if errors > maxRetries:
+                    raise e
+        return []
 
     async def fetch_paginated_call_deterministic(self, method: str, symbol: Str = None, since: Int = None, limit: Int = None, timeframe: Str = None, params={}, maxEntriesPerRequest=None):
         maxCalls = None
@@ -1799,6 +1800,8 @@ class Exchange(BaseExchange):
         currentSince = current - (maxCalls * step) - 1
         if since is not None:
             currentSince = max(currentSince, since)
+        else:
+            currentSince = max(currentSince, 1241440531000)  # avoid timestamps older than 2009
         until = self.safe_integer_2(params, 'until', 'till')  # do not omit it here
         if until is not None:
             requiredCalls = int(math.ceil((until - since)) / step)
@@ -1806,6 +1809,8 @@ class Exchange(BaseExchange):
                 raise BadRequest(self.id + ' the number of required calls is greater than the max number of calls allowed, either increase the paginationCalls or decrease the since-until gap. Current paginationCalls limit is ' + str(maxCalls) + ' required calls is ' + str(requiredCalls))
         for i in range(0, maxCalls):
             if (until is not None) and (currentSince >= until):
+                break
+            if currentSince >= current:
                 break
             tasks.append(self.safe_deterministic_call(method, symbol, currentSince, maxEntriesPerRequest, timeframe, params))
             currentSince = self.sum(currentSince, step) - 1
@@ -1836,13 +1841,16 @@ class Exchange(BaseExchange):
                 response = None
                 if method == 'fetchAccounts':
                     response = await getattr(self, method)(params)
+                elif method == 'getLeverageTiersPaginated':
+                    response = await getattr(self, method)(symbol, params)
                 else:
                     response = await getattr(self, method)(symbol, since, maxEntriesPerRequest, params)
                 errors = 0
                 responseLength = len(response)
                 if self.verbose:
-                    iteration = (i + str(1))
-                    cursorMessage = 'Cursor pagination call ' + iteration + ' method ' + method + ' response length ' + str(responseLength) + ' cursor ' + cursorValue
+                    cursorString = '' if (cursorValue is None) else cursorValue
+                    iteration = (i + 1)
+                    cursorMessage = 'Cursor pagination call ' + str(iteration) + ' method ' + method + ' response length ' + str(responseLength) + ' cursor ' + cursorString
                     self.log(cursorMessage)
                 if responseLength == 0:
                     break
@@ -1919,3 +1927,24 @@ class Exchange(BaseExchange):
         :returns dict[]: a list of `position structures <https://docs.ccxt.com/#/?id=position-structure>`
         """
         raise NotSupported(self.id + ' fetchPositionsHistory() is not supported yet')
+
+    async def fetch_transfer(self, id: str, code: Str = None, params={}):
+        """
+        fetches a transfer
+        :param str id: transfer id
+        :param [str] code: unified currency code
+        :param dict params: extra parameters specific to the exchange api endpoint
+        :returns dict: a `transfer structure <https://docs.ccxt.com/#/?id=transfer-structure>`
+        """
+        raise NotSupported(self.id + ' fetchTransfer() is not supported yet')
+
+    async def fetch_transfers(self, code: Str = None, since: Int = None, limit: Int = None, params={}):
+        """
+        fetches a transfer
+        :param str id: transfer id
+        :param int [since]: timestamp in ms of the earliest transfer to fetch
+        :param int [limit]: the maximum amount of transfers to fetch
+        :param dict params: extra parameters specific to the exchange api endpoint
+        :returns dict: a `transfer structure <https://docs.ccxt.com/#/?id=transfer-structure>`
+        """
+        raise NotSupported(self.id + ' fetchTransfers() is not supported yet')

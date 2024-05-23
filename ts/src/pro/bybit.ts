@@ -5,7 +5,7 @@ import bybitRest from '../bybit.js';
 import { ArgumentsRequired, AuthenticationError, ExchangeError, BadRequest } from '../base/errors.js';
 import { ArrayCache, ArrayCacheBySymbolById, ArrayCacheBySymbolBySide, ArrayCacheByTimestamp } from '../base/ws/Cache.js';
 import { sha256 } from '../static_dependencies/noble-hashes/sha256.js';
-import type { Int, OHLCV, Str, Strings, Ticker, OrderBook, Order, Trade, Tickers, Position, Balances, OrderType, OrderSide, Num } from '../base/types.js';
+import type { Int, OHLCV, Str, Strings, Ticker, OrderBook, Order, Trade, Tickers, Position, Balances, OrderType, OrderSide, Num, Dict } from '../base/types.js';
 import Client from '../base/ws/Client.js';
 
 //  ---------------------------------------------------------------------------
@@ -15,11 +15,11 @@ export default class bybit extends bybitRest {
         return this.deepExtend (super.describe (), {
             'has': {
                 'ws': true,
-                'createOrderWs': false, // available only in sandbox
-                'editOrderWs': false,
+                'createOrderWs': true,
+                'editOrderWs': true,
                 'fetchOpenOrdersWs': false,
                 'fetchOrderWs': false,
-                'cancelOrderWs': false,
+                'cancelOrderWs': true,
                 'cancelOrdersWs': false,
                 'cancelAllOrdersWs': false,
                 'fetchTradesWs': false,
@@ -53,7 +53,7 @@ export default class bybit extends bybitRest {
                             },
                             'contract': 'wss://stream.{hostname}/v5/private',
                             'usdc': 'wss://stream.{hostname}/trade/option/usdc/private/v1',
-                            'trade': 'wss://stream-testnet.bybit.com/v5/trade',
+                            'trade': 'wss://stream.bybit.com/v5/trade',
                         },
                     },
                 },
@@ -211,7 +211,7 @@ export default class bybit extends bybitRest {
         const url = this.urls['api']['ws']['private']['trade'];
         await this.authenticate (url);
         const requestId = this.requestId ().toString ();
-        const request = {
+        const request: Dict = {
             'op': 'order.create',
             'reqId': requestId,
             'args': [
@@ -256,7 +256,7 @@ export default class bybit extends bybitRest {
         const url = this.urls['api']['ws']['private']['trade'];
         await this.authenticate (url);
         const requestId = this.requestId ().toString ();
-        const request = {
+        const request: Dict = {
             'op': 'order.amend',
             'reqId': requestId,
             'args': [
@@ -289,8 +289,10 @@ export default class bybit extends bybitRest {
         const url = this.urls['api']['ws']['private']['trade'];
         await this.authenticate (url);
         const requestId = this.requestId ().toString ();
-        delete orderRequest['orderFilter'];
-        const request = {
+        if ('orderFilter' in orderRequest) {
+            delete orderRequest['orderFilter'];
+        }
+        const request: Dict = {
             'op': 'order.cancel',
             'reqId': requestId,
             'args': [
@@ -358,7 +360,7 @@ export default class bybit extends bybitRest {
         }
         const ticker = await this.watchTopics (url, messageHashes, topics, params);
         if (this.newUpdates) {
-            const result = {};
+            const result: Dict = {};
             result[ticker['symbol']] = ticker;
             return result;
         }
@@ -950,7 +952,7 @@ export default class bybit extends bybitRest {
         }
         const url = this.getUrlByMarketType (symbol, true, method, params);
         await this.authenticate (url);
-        const topicByMarket = {
+        const topicByMarket: Dict = {
             'spot': 'ticketInfo',
             'unified': 'execution',
             'usdc': 'user.openapi.perp.trade',
@@ -1037,7 +1039,7 @@ export default class bybit extends bybitRest {
             this.myTrades = new ArrayCacheBySymbolById (limit);
         }
         const trades = this.myTrades;
-        const symbols = {};
+        const symbols: Dict = {};
         for (let i = 0; i < data.length; i++) {
             const rawTrade = data[i];
             let parsed = undefined;
@@ -1237,7 +1239,7 @@ export default class bybit extends bybitRest {
         }
         const url = this.getUrlByMarketType (symbol, true, method, params);
         await this.authenticate (url);
-        const topicsByMarket = {
+        const topicsByMarket: Dict = {
             'spot': [ 'order', 'stopOrder' ],
             'unified': [ 'order' ],
             'usdc': [ 'user.openapi.perp.order' ],
@@ -1373,7 +1375,7 @@ export default class bybit extends bybitRest {
         if (!isSpot) {
             rawOrders = this.safeValue (rawOrders, 'result', rawOrders);
         }
-        const symbols = {};
+        const symbols: Dict = {};
         for (let i = 0; i < rawOrders.length; i++) {
             let parsed = undefined;
             if (isSpot) {
@@ -1551,7 +1553,7 @@ export default class bybit extends bybitRest {
         const isUnifiedAccount = this.safeBool (unified, 1, false);
         const url = this.getUrlByMarketType (undefined, true, method, params);
         await this.authenticate (url);
-        const topicByMarket = {
+        const topicByMarket: Dict = {
             'spot': 'outboundAccountInfo',
             'unified': 'wallet',
         };
@@ -1824,7 +1826,7 @@ export default class bybit extends bybitRest {
     }
 
     async watchTopics (url, messageHashes, topics, params = {}) {
-        const request = {
+        const request: Dict = {
             'op': 'subscribe',
             'req_id': this.requestId (),
             'args': topics,
@@ -1845,7 +1847,7 @@ export default class bybit extends bybitRest {
             const path = 'GET/realtime';
             const auth = path + expires;
             const signature = this.hmac (this.encode (auth), this.encode (this.secret), sha256, 'hex');
-            const request = {
+            const request: Dict = {
                 'op': 'auth',
                 'args': [
                     this.apiKey, expires, signature,
@@ -1960,7 +1962,7 @@ export default class bybit extends bybitRest {
             return;
         }
         const topic = this.safeString2 (message, 'topic', 'op');
-        const methods = {
+        const methods: Dict = {
             'orderbook': this.handleOrderBook,
             'kline': this.handleOHLCV,
             'order': this.handleOrder,

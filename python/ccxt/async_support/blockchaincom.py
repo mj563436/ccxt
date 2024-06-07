@@ -468,7 +468,7 @@ class blockchaincom(Exchange, ImplicitAPI):
         }
         return self.safe_string(states, state, state)
 
-    def parse_order(self, order, market: Market = None) -> Order:
+    def parse_order(self, order: dict, market: Market = None) -> Order:
         #
         #     {
         #         "clOrdId": "00001",
@@ -589,15 +589,15 @@ class blockchaincom(Exchange, ImplicitAPI):
             'orderId': id,
         }
         response = await self.privateDeleteOrdersOrderId(self.extend(request, params))
-        return {
+        return self.safe_order({
             'id': id,
             'info': response,
-        }
+        })
 
     async def cancel_all_orders(self, symbol: Str = None, params={}):
         """
         cancel all open orders
-        :see: https://api.blockchain.com/v3/#/trading/deleteAllOrders
+        :see: https://api.blockchain.com/v3/#deleteallorders
         :param str symbol: unified market symbol of the market to cancel orders in, all markets are used if None, default is None
         :param dict [params]: extra parameters specific to the exchange API endpoint
         :returns dict: an list of `order structures <https://docs.ccxt.com/#/?id=order-structure>`
@@ -612,10 +612,14 @@ class blockchaincom(Exchange, ImplicitAPI):
             marketId = self.market_id(symbol)
             request['symbol'] = marketId
         response = await self.privateDeleteOrders(self.extend(request, params))
-        return {
-            'symbol': symbol,
-            'info': response,
-        }
+        #
+        # {}
+        #
+        return [
+            self.safe_order({
+                'info': response,
+            }),
+        ]
 
     async def fetch_trading_fees(self, params={}) -> TradingFees:
         """
@@ -700,7 +704,7 @@ class blockchaincom(Exchange, ImplicitAPI):
         response = await self.privateGetOrders(self.extend(request, params))
         return self.parse_orders(response, market, since, limit)
 
-    def parse_trade(self, trade, market: Market = None) -> Trade:
+    def parse_trade(self, trade: dict, market: Market = None) -> Trade:
         #
         #     {
         #         "exOrdId":281685751028507,
@@ -805,7 +809,7 @@ class blockchaincom(Exchange, ImplicitAPI):
         }
         return self.safe_string(states, state, state)
 
-    def parse_transaction(self, transaction, currency: Currency = None) -> Transaction:
+    def parse_transaction(self, transaction: dict, currency: Currency = None) -> Transaction:
         #
         # deposit
         #
@@ -1083,7 +1087,7 @@ class blockchaincom(Exchange, ImplicitAPI):
                 headers['Content-Type'] = 'application/json'
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
+    def handle_errors(self, code: int, reason: str, url: str, method: str, headers: dict, body: str, response, requestHeaders, requestBody):
         # {"timestamp":"2021-10-21T15:13:58.837+00:00","status":404,"error":"Not Found","message":"","path":"/orders/505050"
         if response is None:
             return None

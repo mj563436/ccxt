@@ -628,7 +628,7 @@ class bingx extends Exchange {
         return $this->parse_markets($markets);
     }
 
-    public function parse_market($market): array {
+    public function parse_market(array $market): array {
         $id = $this->safe_string($market, 'symbol');
         $symbolParts = explode('-', $id);
         $baseId = $symbolParts[0];
@@ -940,7 +940,7 @@ class bingx extends Exchange {
         return $this->parse_trades($trades, $market, $since, $limit);
     }
 
-    public function parse_trade($trade, ?array $market = null): array {
+    public function parse_trade(array $trade, ?array $market = null): array {
         //
         // spot
         // fetchTrades
@@ -1030,7 +1030,7 @@ class bingx extends Exchange {
             $time = null;
         }
         $cost = $this->safe_string($trade, 'quoteQty');
-        $type = ($cost === null) ? 'spot' : 'swap';
+        // $type = ($cost === null) ? 'spot' : 'swap'; this is not reliable
         $currencyId = $this->safe_string_n($trade, array( 'currency', 'N', 'commissionAsset' ));
         $currencyCode = $this->safe_currency_code($currencyId);
         $m = $this->safe_bool($trade, 'm');
@@ -1067,7 +1067,7 @@ class bingx extends Exchange {
             'info' => $trade,
             'timestamp' => $time,
             'datetime' => $this->iso8601($time),
-            'symbol' => $this->safe_symbol($marketId, $market, '-', $type),
+            'symbol' => $this->safe_symbol($marketId, $market, '-'),
             'order' => $this->safe_string_2($trade, 'orderId', 'i'),
             'type' => $this->safe_string_lower($trade, 'o'),
             'side' => $this->parse_order_side($side),
@@ -1692,7 +1692,7 @@ class bingx extends Exchange {
         return $this->parse_positions($positions, $symbols);
     }
 
-    public function parse_position($position, ?array $market = null) {
+    public function parse_position(array $position, ?array $market = null) {
         //
         //    {
         //        "positionId":"1773122376147623936",
@@ -2071,7 +2071,8 @@ class bingx extends Exchange {
         //
         if (gettype($response) === 'string') {
             // broken api engine : $order-ids are too long numbers (i.e. 1742930526912864656)
-            // and JSON.parse can not handle them in JS, so we have to use .parse_json            // however, when $order has an attached SL/TP, their value types need extra parsing
+            // and JSON.parse can not handle them in JS, so we have to use .parseJson
+            // however, when $order has an attached SL/TP, their value types need extra parsing
             $response = $this->fix_stringified_json_members($response);
             $response = $this->parse_json($response);
         }
@@ -2194,7 +2195,7 @@ class bingx extends Exchange {
         return $this->safe_string($types, $type, $type);
     }
 
-    public function parse_order($order, ?array $market = null): array {
+    public function parse_order(array $order, ?array $market = null): array {
         //
         // spot
         // createOrder, createOrders, cancelOrder
@@ -2611,10 +2612,10 @@ class bingx extends Exchange {
 
     public function cancel_all_orders(?string $symbol = null, $params = array ()) {
         /**
-         * cancel all open orders
+         * cancel all open $orders
          * @see https://bingx-api.github.io/docs/#/en-us/spot/trade-api.html#Cancel%20orders%20by%20symbol
          * @see https://bingx-api.github.io/docs/#/swapV2/trade-api.html#Cancel%20All%20Orders
-         * @param {string} [$symbol] unified $market $symbol, only orders in the $market of this $symbol are cancelled when $symbol is not null
+         * @param {string} [$symbol] unified $market $symbol, only $orders in the $market of this $symbol are cancelled when $symbol is not null
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
          * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=order-structure order structures~
          */
@@ -2685,7 +2686,9 @@ class bingx extends Exchange {
         } else {
             throw new BadRequest($this->id . ' cancelAllOrders is only supported for spot and swap markets.');
         }
-        return $response;
+        $data = $this->safe_dict($response, 'data', array());
+        $orders = $this->safe_list_2($data, 'success', 'orders', array());
+        return $this->parse_orders($orders);
     }
 
     public function cancel_orders(array $ids, ?string $symbol = null, $params = array ()) {
@@ -2725,6 +2728,32 @@ class bingx extends Exchange {
             $spotReqKey = $areClientOrderIds ? 'clientOrderIDs' : 'orderIds';
             $request[$spotReqKey] = implode(',', $parsedIds);
             $response = $this->spotV1PrivatePostTradeCancelOrders ($this->extend($request, $params));
+            //
+            //    {
+            //       "code" => 0,
+            //       "msg" => "",
+            //       "debugMsg" => "",
+            //       "data" => {
+            //           "orders" => array(
+            //                array(
+            //                    "symbol" => "SOL-USDT",
+            //                    "orderId" => 1795970045910614016,
+            //                    "transactTime" => 1717027601111,
+            //                    "price" => "180.25",
+            //                    "stopPrice" => "0",
+            //                    "origQty" => "0.03",
+            //                    "executedQty" => "0",
+            //                    "cummulativeQuoteQty" => "0",
+            //                    "status" => "CANCELED",
+            //                    "type" => "LIMIT",
+            //                    "side" => "SELL",
+            //                    "clientOrderID" => ""
+            //                ),
+            //                ...
+            //            )
+            //        }
+            //    }
+            //
         } else {
             if ($areClientOrderIds) {
                 $request['clientOrderIDList'] = $this->json($parsedIds);
@@ -2732,37 +2761,39 @@ class bingx extends Exchange {
                 $request['orderIdList'] = $parsedIds;
             }
             $response = $this->swapV2PrivateDeleteTradeBatchOrders ($this->extend($request, $params));
+            //
+            //    {
+            //        "code" => 0,
+            //        "msg" => "",
+            //        "data" => {
+            //          "success" => array(
+            //            {
+            //              "symbol" => "LINK-USDT",
+            //              "orderId" => 1597783850786750464,
+            //              "side" => "BUY",
+            //              "positionSide" => "LONG",
+            //              "type" => "TRIGGER_MARKET",
+            //              "origQty" => "5.0",
+            //              "price" => "5.5710",
+            //              "executedQty" => "0.0",
+            //              "avgPrice" => "0.0000",
+            //              "cumQuote" => "0",
+            //              "stopPrice" => "5.0000",
+            //              "profit" => "0.0000",
+            //              "commission" => "0.000000",
+            //              "status" => "CANCELLED",
+            //              "time" => 1669776330000,
+            //              "updateTime" => 1672370837000
+            //            }
+            //          ),
+            //          "failed" => null
+            //        }
+            //    }
+            //
         }
-        //
-        //    {
-        //        "code" => 0,
-        //        "msg" => "",
-        //        "data" => {
-        //          "success" => array(
-        //            {
-        //              "symbol" => "LINK-USDT",
-        //              "orderId" => 1597783850786750464,
-        //              "side" => "BUY",
-        //              "positionSide" => "LONG",
-        //              "type" => "TRIGGER_MARKET",
-        //              "origQty" => "5.0",
-        //              "price" => "5.5710",
-        //              "executedQty" => "0.0",
-        //              "avgPrice" => "0.0000",
-        //              "cumQuote" => "0",
-        //              "stopPrice" => "5.0000",
-        //              "profit" => "0.0000",
-        //              "commission" => "0.000000",
-        //              "status" => "CANCELLED",
-        //              "time" => 1669776330000,
-        //              "updateTime" => 1672370837000
-        //            }
-        //          ),
-        //          "failed" => null
-        //        }
-        //    }
-        //
-        return $response;
+        $data = $this->safe_dict($response, 'data', array());
+        $success = $this->safe_list_2($data, 'success', 'orders', array());
+        return $this->parse_orders($success);
     }
 
     public function cancel_all_orders_after(?int $timeout, $params = array ()) {
@@ -3462,7 +3493,7 @@ class bingx extends Exchange {
         return $this->parse_transactions($response, $currency, $since, $limit);
     }
 
-    public function parse_transaction($transaction, ?array $currency = null): array {
+    public function parse_transaction(array $transaction, ?array $currency = null): array {
         //
         // fetchDeposits
         //
@@ -4424,7 +4455,7 @@ class bingx extends Exchange {
         return $this->parse_margin_mode($data, $market);
     }
 
-    public function parse_margin_mode($marginMode, $market = null): array {
+    public function parse_margin_mode(array $marginMode, $market = null): array {
         $marginType = $this->safe_string_lower($marginMode, 'marginType');
         $marginType = ($marginType === 'crossed') ? 'cross' : $marginType;
         return array(
@@ -4488,7 +4519,7 @@ class bingx extends Exchange {
         $this->options['sandboxMode'] = $enable;
     }
 
-    public function handle_errors($httpCode, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {
+    public function handle_errors(int $httpCode, string $reason, string $url, string $method, array $headers, string $body, $response, $requestHeaders, $requestBody) {
         if ($response === null) {
             return null; // fallback to default error handler
         }

@@ -1039,7 +1039,7 @@ export default class bingx extends Exchange {
             time = undefined;
         }
         const cost = this.safeString(trade, 'quoteQty');
-        const type = (cost === undefined) ? 'spot' : 'swap';
+        // const type = (cost === undefined) ? 'spot' : 'swap'; this is not reliable
         const currencyId = this.safeStringN(trade, ['currency', 'N', 'commissionAsset']);
         const currencyCode = this.safeCurrencyCode(currencyId);
         const m = this.safeBool(trade, 'm');
@@ -1076,7 +1076,7 @@ export default class bingx extends Exchange {
             'info': trade,
             'timestamp': time,
             'datetime': this.iso8601(time),
-            'symbol': this.safeSymbol(marketId, market, '-', type),
+            'symbol': this.safeSymbol(marketId, market, '-'),
             'order': this.safeString2(trade, 'orderId', 'i'),
             'type': this.safeStringLower(trade, 'o'),
             'side': this.parseOrderSide(side),
@@ -2736,7 +2736,9 @@ export default class bingx extends Exchange {
         else {
             throw new BadRequest(this.id + ' cancelAllOrders is only supported for spot and swap markets.');
         }
-        return response;
+        const data = this.safeDict(response, 'data', {});
+        const orders = this.safeList2(data, 'success', 'orders', []);
+        return this.parseOrders(orders);
     }
     async cancelOrders(ids, symbol = undefined, params = {}) {
         /**
@@ -2777,6 +2779,32 @@ export default class bingx extends Exchange {
             const spotReqKey = areClientOrderIds ? 'clientOrderIDs' : 'orderIds';
             request[spotReqKey] = parsedIds.join(',');
             response = await this.spotV1PrivatePostTradeCancelOrders(this.extend(request, params));
+            //
+            //    {
+            //       "code": 0,
+            //       "msg": "",
+            //       "debugMsg": "",
+            //       "data": {
+            //           "orders": [
+            //                {
+            //                    "symbol": "SOL-USDT",
+            //                    "orderId": 1795970045910614016,
+            //                    "transactTime": 1717027601111,
+            //                    "price": "180.25",
+            //                    "stopPrice": "0",
+            //                    "origQty": "0.03",
+            //                    "executedQty": "0",
+            //                    "cummulativeQuoteQty": "0",
+            //                    "status": "CANCELED",
+            //                    "type": "LIMIT",
+            //                    "side": "SELL",
+            //                    "clientOrderID": ""
+            //                },
+            //                ...
+            //            ]
+            //        }
+            //    }
+            //
         }
         else {
             if (areClientOrderIds) {
@@ -2786,37 +2814,39 @@ export default class bingx extends Exchange {
                 request['orderIdList'] = parsedIds;
             }
             response = await this.swapV2PrivateDeleteTradeBatchOrders(this.extend(request, params));
+            //
+            //    {
+            //        "code": 0,
+            //        "msg": "",
+            //        "data": {
+            //          "success": [
+            //            {
+            //              "symbol": "LINK-USDT",
+            //              "orderId": 1597783850786750464,
+            //              "side": "BUY",
+            //              "positionSide": "LONG",
+            //              "type": "TRIGGER_MARKET",
+            //              "origQty": "5.0",
+            //              "price": "5.5710",
+            //              "executedQty": "0.0",
+            //              "avgPrice": "0.0000",
+            //              "cumQuote": "0",
+            //              "stopPrice": "5.0000",
+            //              "profit": "0.0000",
+            //              "commission": "0.000000",
+            //              "status": "CANCELLED",
+            //              "time": 1669776330000,
+            //              "updateTime": 1672370837000
+            //            }
+            //          ],
+            //          "failed": null
+            //        }
+            //    }
+            //
         }
-        //
-        //    {
-        //        "code": 0,
-        //        "msg": "",
-        //        "data": {
-        //          "success": [
-        //            {
-        //              "symbol": "LINK-USDT",
-        //              "orderId": 1597783850786750464,
-        //              "side": "BUY",
-        //              "positionSide": "LONG",
-        //              "type": "TRIGGER_MARKET",
-        //              "origQty": "5.0",
-        //              "price": "5.5710",
-        //              "executedQty": "0.0",
-        //              "avgPrice": "0.0000",
-        //              "cumQuote": "0",
-        //              "stopPrice": "5.0000",
-        //              "profit": "0.0000",
-        //              "commission": "0.000000",
-        //              "status": "CANCELLED",
-        //              "time": 1669776330000,
-        //              "updateTime": 1672370837000
-        //            }
-        //          ],
-        //          "failed": null
-        //        }
-        //    }
-        //
-        return response;
+        const data = this.safeDict(response, 'data', {});
+        const success = this.safeList2(data, 'success', 'orders', []);
+        return this.parseOrders(success);
     }
     async cancelAllOrdersAfter(timeout, params = {}) {
         /**

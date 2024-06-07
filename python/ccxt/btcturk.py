@@ -428,7 +428,7 @@ class btcturk(Exchange, ImplicitAPI):
         tickers = self.fetch_tickers([symbol], params)
         return self.safe_value(tickers, symbol)
 
-    def parse_trade(self, trade, market: Market = None) -> Trade:
+    def parse_trade(self, trade: dict, market: Market = None) -> Trade:
         #
         # fetchTrades
         #     {
@@ -684,7 +684,17 @@ class btcturk(Exchange, ImplicitAPI):
         request: dict = {
             'id': id,
         }
-        return self.privateDeleteOrder(self.extend(request, params))
+        response = self.privateDeleteOrder(self.extend(request, params))
+        #
+        #    {
+        #        "success": True,
+        #        "message": "SUCCESS",
+        #        "code": 0
+        #    }
+        #
+        return self.safe_order({
+            'info': response,
+        })
 
     def fetch_open_orders(self, symbol: Str = None, since: Int = None, limit: Int = None, params={}) -> List[Order]:
         """
@@ -761,7 +771,7 @@ class btcturk(Exchange, ImplicitAPI):
         }
         return self.safe_string(statuses, status, status)
 
-    def parse_order(self, order, market: Market = None) -> Order:
+    def parse_order(self, order: dict, market: Market = None) -> Order:
         #
         # fetchOrders / fetchOpenOrders
         #     {
@@ -891,7 +901,7 @@ class btcturk(Exchange, ImplicitAPI):
             }
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
+    def handle_errors(self, code: int, reason: str, url: str, method: str, headers: dict, body: str, response, requestHeaders, requestBody):
         errorCode = self.safe_string(response, 'code', '0')
         message = self.safe_string(response, 'message')
         output = body if (message is None) else message

@@ -884,7 +884,7 @@ class bitstamp(Exchange, ImplicitAPI):
                 return self.safe_market(marketId)
         return None
 
-    def parse_trade(self, trade, market: Market = None) -> Trade:
+    def parse_trade(self, trade: dict, market: Market = None) -> Trade:
         #
         # fetchTrades(public)
         #
@@ -1182,7 +1182,7 @@ class bitstamp(Exchange, ImplicitAPI):
         tradingFee = self.safe_dict(tradingFeesByMarketId, market['id'])
         return self.parse_trading_fee(tradingFee, market)
 
-    def parse_trading_fee(self, fee, market: Market = None) -> TradingFeeInterface:
+    def parse_trading_fee(self, fee: dict, market: Market = None) -> TradingFeeInterface:
         marketId = self.safe_string(fee, 'market')
         fees = self.safe_dict(fee, 'fees', {})
         return {
@@ -1228,7 +1228,7 @@ class bitstamp(Exchange, ImplicitAPI):
         #
         return self.parse_trading_fees(response)
 
-    async def fetch_transaction_fees(self, codes: List[str] = None, params={}):
+    async def fetch_transaction_fees(self, codes: Strings = None, params={}):
         """
          * @deprecated
         please use fetchDepositWithdrawFees instead
@@ -1376,7 +1376,17 @@ class bitstamp(Exchange, ImplicitAPI):
         request: dict = {
             'id': id,
         }
-        return await self.privatePostCancelOrder(self.extend(request, params))
+        response = await self.privatePostCancelOrder(self.extend(request, params))
+        #
+        #    {
+        #        "id": 1453282316578816,
+        #        "amount": "0.02035278",
+        #        "price": "2100.45",
+        #        "type": 0,
+        #        "market": "BTC/USD"
+        #    }
+        #
+        return self.parse_order(response)
 
     async def cancel_all_orders(self, symbol: Str = None, params={}):
         """
@@ -1397,7 +1407,23 @@ class bitstamp(Exchange, ImplicitAPI):
             response = await self.privatePostCancelAllOrdersPair(self.extend(request, params))
         else:
             response = await self.privatePostCancelAllOrders(self.extend(request, params))
-        return response
+        #
+        #    {
+        #        "canceled": [
+        #            {
+        #                "id": 1453282316578816,
+        #                "amount": "0.02035278",
+        #                "price": "2100.45",
+        #                "type": 0,
+        #                "currency_pair": "BTC/USD",
+        #                "market": "BTC/USD"
+        #            }
+        #        ],
+        #        "success": True
+        #    }
+        #
+        canceled = self.safe_list(response, 'canceled')
+        return self.parse_orders(canceled)
 
     def parse_order_status(self, status: Str):
         statuses: dict = {
@@ -1575,7 +1601,7 @@ class bitstamp(Exchange, ImplicitAPI):
         #
         return self.parse_transactions(response, None, since, limit)
 
-    def parse_transaction(self, transaction, currency: Currency = None) -> Transaction:
+    def parse_transaction(self, transaction: dict, currency: Currency = None) -> Transaction:
         #
         # fetchDepositsWithdrawals
         #
@@ -1689,7 +1715,7 @@ class bitstamp(Exchange, ImplicitAPI):
             'fee': fee,
         }
 
-    def parse_transaction_status(self, status):
+    def parse_transaction_status(self, status: Str):
         #
         #   withdrawals:
         #   0(open), 1(in process), 2(finished), 3(canceled) or 4(failed).
@@ -1703,7 +1729,7 @@ class bitstamp(Exchange, ImplicitAPI):
         }
         return self.safe_string(statuses, status, status)
 
-    def parse_order(self, order, market: Market = None) -> Order:
+    def parse_order(self, order: dict, market: Market = None) -> Order:
         #
         #   from fetch order:
         #     {status: "Finished",
@@ -1742,6 +1768,16 @@ class bitstamp(Exchange, ImplicitAPI):
         #           "type": "0",
         #           "id": "2814205012"
         #       }
+        #
+        # cancelOrder
+        #
+        #    {
+        #        "id": 1453282316578816,
+        #        "amount": "0.02035278",
+        #        "price": "2100.45",
+        #        "type": 0,
+        #        "market": "BTC/USD"
+        #    }
         #
         id = self.safe_string(order, 'id')
         clientOrderId = self.safe_string(order, 'client_order_id')
@@ -1790,7 +1826,7 @@ class bitstamp(Exchange, ImplicitAPI):
         }
         return self.safe_string(types, type, type)
 
-    def parse_ledger_entry(self, item, currency: Currency = None):
+    def parse_ledger_entry(self, item: dict, currency: Currency = None):
         #
         #     [
         #         {
@@ -2109,7 +2145,7 @@ class bitstamp(Exchange, ImplicitAPI):
             headers['X-Auth-Signature'] = signature
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def handle_errors(self, httpCode, reason, url, method, headers, body, response, requestHeaders, requestBody):
+    def handle_errors(self, httpCode: int, reason: str, url: str, method: str, headers: dict, body: str, response, requestHeaders, requestBody):
         if response is None:
             return None
         #

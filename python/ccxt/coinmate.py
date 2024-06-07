@@ -504,7 +504,7 @@ class coinmate(Exchange, ImplicitAPI):
         items = response['data']
         return self.parse_transactions(items, None, since, limit)
 
-    def parse_transaction_status(self, status):
+    def parse_transaction_status(self, status: Str):
         statuses: dict = {
             'COMPLETED': 'ok',
             'WAITING': 'pending',
@@ -516,7 +516,7 @@ class coinmate(Exchange, ImplicitAPI):
         }
         return self.safe_string(statuses, status, status)
 
-    def parse_transaction(self, transaction, currency: Currency = None) -> Transaction:
+    def parse_transaction(self, transaction: dict, currency: Currency = None) -> Transaction:
         #
         # deposits
         #
@@ -666,7 +666,7 @@ class coinmate(Exchange, ImplicitAPI):
         data = self.safe_list(response, 'data', [])
         return self.parse_trades(data, None, since, limit)
 
-    def parse_trade(self, trade, market: Market = None) -> Trade:
+    def parse_trade(self, trade: dict, market: Market = None) -> Trade:
         #
         # fetchMyTrades(private)
         #
@@ -852,7 +852,7 @@ class coinmate(Exchange, ImplicitAPI):
         }
         return self.safe_string(types, type, type)
 
-    def parse_order(self, order, market: Market = None) -> Order:
+    def parse_order(self, order: dict, market: Market = None) -> Order:
         #
         # limit sell
         #
@@ -894,6 +894,13 @@ class coinmate(Exchange, ImplicitAPI):
         #         "avgPrice": null,
         #         "trailing": False,
         #     }
+        #
+        # cancelOrder
+        #
+        #    {
+        #        "success": True,
+        #        "remainingAmount": 0.1
+        #    }
         #
         id = self.safe_string(order, 'id')
         timestamp = self.safe_integer(order, 'timestamp')
@@ -1003,9 +1010,18 @@ class coinmate(Exchange, ImplicitAPI):
         #   {"error":false,"errorMessage":null,"data":{"success":true,"remainingAmount":0.01}}
         request: dict = {'orderId': id}
         response = self.privatePostCancelOrderWithInfo(self.extend(request, params))
-        return {
-            'info': response,
-        }
+        #
+        #    {
+        #        "error": False,
+        #        "errorMessage": null,
+        #        "data": {
+        #          "success": True,
+        #          "remainingAmount": 0.1
+        #        }
+        #    }
+        #
+        data = self.safe_dict(response, 'data')
+        return self.parse_order(data)
 
     def nonce(self):
         return self.milliseconds()
@@ -1031,7 +1047,7 @@ class coinmate(Exchange, ImplicitAPI):
             }
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
+    def handle_errors(self, code: int, reason: str, url: str, method: str, headers: dict, body: str, response, requestHeaders, requestBody):
         if response is not None:
             if 'error' in response:
                 # {"error":true,"errorMessage":"Minimum Order Size 0.01 ETH","data":null}

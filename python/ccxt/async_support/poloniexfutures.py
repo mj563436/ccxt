@@ -288,7 +288,7 @@ class poloniexfutures(Exchange, ImplicitAPI):
         data = self.safe_value(response, 'data', [])
         return self.parse_markets(data)
 
-    def parse_market(self, market) -> Market:
+    def parse_market(self, market: dict) -> Market:
         id = self.safe_string(market, 'symbol')
         baseId = self.safe_string(market, 'baseCurrency')
         quoteId = self.safe_string(market, 'quoteCurrency')
@@ -383,9 +383,12 @@ class poloniexfutures(Exchange, ImplicitAPI):
         marketId = self.safe_string(ticker, 'symbol')
         symbol = self.safe_symbol(marketId, market)
         timestampString = self.safe_string(ticker, 'ts')
-        # check timestamp bcz bug: https://app.travis-ci.com/github/ccxt/ccxt/builds/269959181#L4011 and also 17 digits occured
         multiplier = None
-        if len(timestampString) == 17:
+        if len(timestampString) == 16:
+            # 16 digits: https://app.travis-ci.com/github/ccxt/ccxt/builds/270587157#L5454
+            multiplier = 0.001
+        elif len(timestampString) == 17:
+            # 17 digits: https://app.travis-ci.com/github/ccxt/ccxt/builds/269959181#L4011
             multiplier = 0.0001
         elif len(timestampString) == 18:
             multiplier = 0.00001
@@ -462,7 +465,8 @@ class poloniexfutures(Exchange, ImplicitAPI):
         """
         await self.load_markets()
         response = await self.publicGetTickers(params)
-        return self.parse_tickers(self.safe_value(response, 'data', []), symbols)
+        data = self.safe_list(response, 'data', [])
+        return self.parse_tickers(data, symbols)
 
     async def fetch_order_book(self, symbol: str, limit: Int = None, params={}) -> OrderBook:
         """
@@ -557,7 +561,7 @@ class poloniexfutures(Exchange, ImplicitAPI):
         market = self.market(symbol)
         return self.fetch_order_book(market['id'], None, {'level': 3})
 
-    def parse_trade(self, trade, market: Market = None) -> Trade:
+    def parse_trade(self, trade: dict, market: Market = None) -> Trade:
         #
         # fetchTrades(public)
         #
@@ -983,7 +987,7 @@ class poloniexfutures(Exchange, ImplicitAPI):
         data = self.safe_list(response, 'data')
         return self.parse_positions(data, symbols)
 
-    def parse_position(self, position, market: Market = None):
+    def parse_position(self, position: dict, market: Market = None):
         #
         #    {
         #        "code": "200000",
@@ -1402,7 +1406,7 @@ class poloniexfutures(Exchange, ImplicitAPI):
         responseData = self.safe_dict(response, 'data')
         return self.parse_order(responseData, market)
 
-    def parse_order(self, order, market: Market = None) -> Order:
+    def parse_order(self, order: dict, market: Market = None) -> Order:
         #
         # createOrder
         #
@@ -1694,7 +1698,7 @@ class poloniexfutures(Exchange, ImplicitAPI):
             headers['Content-Type'] = 'application/json'
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
+    def handle_errors(self, code: int, reason: str, url: str, method: str, headers: dict, body: str, response, requestHeaders, requestBody):
         if not response:
             self.throw_broadly_matched_exception(self.exceptions['broad'], body, body)
             return None

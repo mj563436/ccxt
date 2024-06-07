@@ -2238,19 +2238,76 @@ class kucoin(Exchange, ImplicitAPI):
             request['clientOid'] = clientOrderId
             if stop:
                 response = await self.privateDeleteStopOrderCancelOrderByClientOid(self.extend(request, params))
+                #
+                #    {
+                #        code: '200000',
+                #        data: {
+                #          cancelledOrderId: 'vs8lgpiuao41iaft003khbbk',
+                #          clientOid: '123456'
+                #        }
+                #    }
+                #
             elif hf:
                 response = await self.privateDeleteHfOrdersClientOrderClientOid(self.extend(request, params))
+                #
+                #    {
+                #        "code": "200000",
+                #        "data": {
+                #          "clientOid": "6d539dc614db3"
+                #        }
+                #    }
+                #
             else:
                 response = await self.privateDeleteOrderClientOrderClientOid(self.extend(request, params))
+                #
+                #    {
+                #        code: '200000',
+                #        data: {
+                #          cancelledOrderId: '665e580f6660500007aba341',
+                #          clientOid: '1234567',
+                #          cancelledOcoOrderIds: null
+                #        }
+                #    }
+                #
+            response = self.safe_dict(response, 'data')
+            return self.parse_order(response)
         else:
             request['orderId'] = id
             if stop:
                 response = await self.privateDeleteStopOrderOrderId(self.extend(request, params))
+                #
+                #    {
+                #        code: '200000',
+                #        data: {cancelledOrderIds: ['vs8lgpiuaco91qk8003vebu9']}
+                #    }
+                #
             elif hf:
                 response = await self.privateDeleteHfOrdersOrderId(self.extend(request, params))
+                #
+                #    {
+                #        "code": "200000",
+                #        "data": {
+                #          "orderId": "630625dbd9180300014c8d52"
+                #        }
+                #    }
+                #
+                response = self.safe_dict(response, 'data')
+                return self.parse_order(response)
             else:
                 response = await self.privateDeleteOrdersOrderId(self.extend(request, params))
-        return response
+                #
+                #    {
+                #        code: '200000',
+                #        data: {cancelledOrderIds: ['665e4fbe28051a0007245c41']}
+                #    }
+                #
+            data = self.safe_dict(response, 'data')
+            orderIds = self.safe_list(data, 'cancelledOrderIds', [])
+            orderId = self.safe_string(orderIds, 0)
+            return self.safe_order({
+                'info': data,
+                'id': orderId,
+            })
 
     async def cancel_all_orders(self, symbol: Str = None, params={}):
         """
@@ -2515,7 +2572,7 @@ class kucoin(Exchange, ImplicitAPI):
             responseData = self.safe_value(responseData, 0)
         return self.parse_order(responseData, market)
 
-    def parse_order(self, order, market: Market = None) -> Order:
+    def parse_order(self, order: dict, market: Market = None) -> Order:
         #
         # createOrder
         #
@@ -2664,7 +2721,7 @@ class kucoin(Exchange, ImplicitAPI):
         stopPrice = self.safe_number(order, 'stopPrice')
         return self.safe_order({
             'info': order,
-            'id': self.safe_string_n(order, ['id', 'orderId', 'newOrderId']),
+            'id': self.safe_string_n(order, ['id', 'orderId', 'newOrderId', 'cancelledOrderId']),
             'clientOrderId': self.safe_string(order, 'clientOid'),
             'symbol': self.safe_symbol(marketId, market, '-'),
             'type': self.safe_string(order, 'type'),
@@ -2844,7 +2901,7 @@ class kucoin(Exchange, ImplicitAPI):
         trades = self.safe_list(response, 'data', [])
         return self.parse_trades(trades, market, since, limit)
 
-    def parse_trade(self, trade, market: Market = None) -> Trade:
+    def parse_trade(self, trade: dict, market: Market = None) -> Trade:
         #
         # fetchTrades(public)
         #
@@ -3101,7 +3158,7 @@ class kucoin(Exchange, ImplicitAPI):
             code = currency['code']
             self.currencies[code]['networks'][networkCode]['precision'] = precision
 
-    def parse_transaction_status(self, status):
+    def parse_transaction_status(self, status: Str):
         statuses: dict = {
             'SUCCESS': 'ok',
             'PROCESSING': 'pending',
@@ -3110,7 +3167,7 @@ class kucoin(Exchange, ImplicitAPI):
         }
         return self.safe_string(statuses, status, status)
 
-    def parse_transaction(self, transaction, currency: Currency = None) -> Transaction:
+    def parse_transaction(self, transaction: dict, currency: Currency = None) -> Transaction:
         #
         # fetchDeposits
         #
@@ -3731,7 +3788,7 @@ class kucoin(Exchange, ImplicitAPI):
         }
         return self.safe_string(types, type, type)
 
-    def parse_ledger_entry(self, item, currency: Currency = None):
+    def parse_ledger_entry(self, item: dict, currency: Currency = None):
         #
         #     {
         #         "id": "611a1e7c6a053300067a88d9",  #unique key for each ledger entry
@@ -4049,7 +4106,7 @@ class kucoin(Exchange, ImplicitAPI):
         assets = self.safe_list(data, 'assets', []) if (marginMode == 'isolated') else self.safe_list(data, 'accounts', [])
         return self.parse_borrow_interests(assets, None)
 
-    def parse_borrow_interest(self, info, market: Market = None):
+    def parse_borrow_interest(self, info: dict, market: Market = None):
         #
         # Cross
         #
@@ -4498,7 +4555,7 @@ class kucoin(Exchange, ImplicitAPI):
                     headers['KC-BROKER-NAME'] = brokerName
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
+    def handle_errors(self, code: int, reason: str, url: str, method: str, headers: dict, body: str, response, requestHeaders, requestBody):
         if not response:
             self.throw_broadly_matched_exception(self.exceptions['broad'], body, body)
             return None

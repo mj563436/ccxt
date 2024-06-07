@@ -251,7 +251,7 @@ class bl3p(Exchange, ImplicitAPI):
         #
         return self.parse_ticker(ticker, market)
 
-    def parse_trade(self, trade, market: Market = None) -> Trade:
+    def parse_trade(self, trade: dict, market: Market = None) -> Trade:
         #
         # fetchTrades
         #
@@ -413,7 +413,13 @@ class bl3p(Exchange, ImplicitAPI):
         request: dict = {
             'order_id': id,
         }
-        return self.privatePostMarketMoneyOrderCancel(self.extend(request, params))
+        response = self.privatePostMarketMoneyOrderCancel(self.extend(request, params))
+        #
+        # "success"
+        #
+        return self.safe_order({
+            'info': response,
+        })
 
     def create_deposit_address(self, code: str, params={}):
         """

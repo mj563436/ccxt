@@ -1069,7 +1069,7 @@ public partial class bingx : Exchange
             time = null;
         }
         object cost = this.safeString(trade, "quoteQty");
-        object type = ((bool) isTrue((isEqual(cost, null)))) ? "spot" : "swap";
+        // const type = (cost === undefined) ? 'spot' : 'swap'; this is not reliable
         object currencyId = this.safeStringN(trade, new List<object>() {"currency", "N", "commissionAsset"});
         object currencyCode = this.safeCurrencyCode(currencyId);
         object m = this.safeBool(trade, "m");
@@ -1112,7 +1112,7 @@ public partial class bingx : Exchange
             { "info", trade },
             { "timestamp", time },
             { "datetime", this.iso8601(time) },
-            { "symbol", this.safeSymbol(marketId, market, "-", type) },
+            { "symbol", this.safeSymbol(marketId, market, "-") },
             { "order", this.safeString2(trade, "orderId", "i") },
             { "type", this.safeStringLower(trade, "o") },
             { "side", this.parseOrderSide(side) },
@@ -2881,7 +2881,9 @@ public partial class bingx : Exchange
         {
             throw new BadRequest ((string)add(this.id, " cancelAllOrders is only supported for spot and swap markets.")) ;
         }
-        return response;
+        object data = this.safeDict(response, "data", new Dictionary<string, object>() {});
+        object orders = this.safeList2(data, "success", "orders", new List<object>() {});
+        return this.parseOrders(orders);
     }
 
     public async virtual Task<object> cancelOrders(object ids, object symbol = null, object parameters = null)
@@ -2940,36 +2942,9 @@ public partial class bingx : Exchange
             }
             response = await this.swapV2PrivateDeleteTradeBatchOrders(this.extend(request, parameters));
         }
-        //
-        //    {
-        //        "code": 0,
-        //        "msg": "",
-        //        "data": {
-        //          "success": [
-        //            {
-        //              "symbol": "LINK-USDT",
-        //              "orderId": 1597783850786750464,
-        //              "side": "BUY",
-        //              "positionSide": "LONG",
-        //              "type": "TRIGGER_MARKET",
-        //              "origQty": "5.0",
-        //              "price": "5.5710",
-        //              "executedQty": "0.0",
-        //              "avgPrice": "0.0000",
-        //              "cumQuote": "0",
-        //              "stopPrice": "5.0000",
-        //              "profit": "0.0000",
-        //              "commission": "0.000000",
-        //              "status": "CANCELLED",
-        //              "time": 1669776330000,
-        //              "updateTime": 1672370837000
-        //            }
-        //          ],
-        //          "failed": null
-        //        }
-        //    }
-        //
-        return response;
+        object data = this.safeDict(response, "data", new Dictionary<string, object>() {});
+        object success = this.safeList2(data, "success", "orders", new List<object>() {});
+        return this.parseOrders(success);
     }
 
     public async override Task<object> cancelAllOrdersAfter(object timeout, object parameters = null)

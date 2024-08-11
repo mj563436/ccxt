@@ -1685,6 +1685,7 @@ public partial class binance
     /// See <see href="https://developers.binance.com/docs/wallet/asset/trade-fee"/>  <br/>
     /// See <see href="https://developers.binance.com/docs/derivatives/usds-margined-futures/account/rest-api/Account-Information-V2"/>  <br/>
     /// See <see href="https://developers.binance.com/docs/derivatives/coin-margined-futures/account/Account-Information"/>  <br/>
+    /// See <see href="https://developers.binance.com/docs/derivatives/usds-margined-futures/account/rest-api/Account-Config"/>  <br/>
     /// <list type="table">
     /// <item>
     /// <term>params</term>
@@ -1920,6 +1921,7 @@ public partial class binance
     /// See <see href="https://developers.binance.com/docs/derivatives/coin-margined-futures/account/Account-Information"/>  <br/>
     /// See <see href="https://developers.binance.com/docs/derivatives/usds-margined-futures/trade/rest-api/Position-Information-V2"/>  <br/>
     /// See <see href="https://developers.binance.com/docs/derivatives/coin-margined-futures/trade/Position-Information"/>  <br/>
+    /// See <see href="https://developers.binance.com/docs/derivatives/usds-margined-futures/account/rest-api/Account-Information-V3"/>  <br/>
     /// <list type="table">
     /// <item>
     /// <term>params</term>
@@ -1945,6 +1947,12 @@ public partial class binance
     /// boolean : set to true if you would like to filter out closed positions, default is false
     /// </description>
     /// </item>
+    /// <item>
+    /// <term>params.useV2</term>
+    /// <description>
+    /// boolean : set to true if you want to use obsolete endpoint, where some more additional fields were provided
+    /// </description>
+    /// </item>
     /// </list>
     /// </remarks>
     /// <returns> <term>object</term> data on account positions.</returns>
@@ -1961,6 +1969,7 @@ public partial class binance
     /// See <see href="https://developers.binance.com/docs/derivatives/coin-margined-futures/trade/Position-Information"/>  <br/>
     /// See <see href="https://developers.binance.com/docs/derivatives/portfolio-margin/account/Query-UM-Position-Information"/>  <br/>
     /// See <see href="https://developers.binance.com/docs/derivatives/portfolio-margin/account/Query-CM-Position-Information"/>  <br/>
+    /// See <see href="https://developers.binance.com/docs/derivatives/usds-margined-futures/trade/rest-api/Position-Information-V3"/>  <br/>
     /// <list type="table">
     /// <item>
     /// <term>params</term>
@@ -2136,6 +2145,7 @@ public partial class binance
     /// See <see href="https://developers.binance.com/docs/derivatives/coin-margined-futures/account/Account-Information"/>  <br/>
     /// See <see href="https://developers.binance.com/docs/derivatives/portfolio-margin/account/Get-UM-Account-Detail"/>  <br/>
     /// See <see href="https://developers.binance.com/docs/derivatives/portfolio-margin/account/Get-CM-Account-Detail"/>  <br/>
+    /// See <see href="https://developers.binance.com/docs/derivatives/usds-margined-futures/account/rest-api/Symbol-Config"/>  <br/>
     /// <list type="table">
     /// <item>
     /// <term>params</term>
@@ -2678,6 +2688,7 @@ public partial class binance
     /// <remarks>
     /// See <see href="https://developers.binance.com/docs/derivatives/coin-margined-futures/account/Account-Information"/>  <br/>
     /// See <see href="https://developers.binance.com/docs/derivatives/usds-margined-futures/account/rest-api/Account-Information-V2"/>  <br/>
+    /// See <see href="https://developers.binance.com/docs/derivatives/usds-margined-futures/account/rest-api/Symbol-Config"/>  <br/>
     /// <list type="table">
     /// <item>
     /// <term>params</term>

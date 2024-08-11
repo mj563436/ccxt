@@ -22,6 +22,12 @@ require('../static_dependencies/noble-hashes/sha256.js');
 require('../static_dependencies/ethers/address/address.js');
 var typedData = require('../static_dependencies/ethers/hash/typed-data.js');
 var rng = require('../static_dependencies/jsencrypt/lib/jsbn/rng.js');
+var index$1 = require('../static_dependencies/scure-starknet/index.js');
+require('../static_dependencies/noble-curves/abstract/modular.js');
+var selector = require('../static_dependencies/starknet/utils/selector.js');
+var classHash = require('../static_dependencies/starknet/utils/hash/classHash.js');
+var index$2 = require('../static_dependencies/starknet/utils/calldata/index.js');
+var typedData$1 = require('../static_dependencies/starknet/utils/typedData.js');
 var generic = require('./functions/generic.js');
 var misc = require('./functions/misc.js');
 
@@ -1182,6 +1188,49 @@ class Exchange {
     ethEncodeStructuredData(domain, messageTypes, messageData) {
         return this.base16ToBinary(typedData.TypedDataEncoder.encode(domain, messageTypes, messageData).slice(-132));
     }
+    retrieveStarkAccount(signature, accountClassHash, accountProxyClassHash) {
+        const privateKey = index$1.ethSigToPrivate(signature);
+        const publicKey = index$1.getStarkKey(privateKey);
+        const callData = index$2.CallData.compile({
+            implementation: accountClassHash,
+            selector: selector.getSelectorFromName('initialize'),
+            calldata: index$2.CallData.compile({
+                signer: publicKey,
+                guardian: '0',
+            }),
+        });
+        const address = classHash.calculateContractAddressFromHash(publicKey, accountProxyClassHash, callData, 0);
+        return {
+            privateKey,
+            publicKey,
+            address
+        };
+    }
+    starknetEncodeStructuredData(domain, messageTypes, messageData, address) {
+        const types = Object.keys(messageTypes);
+        if (types.length > 1) {
+            throw new errors.NotSupported(this.id + 'starknetEncodeStructuredData only support single type');
+        }
+        const request = {
+            'domain': domain,
+            'primaryType': types[0],
+            'types': this.extend({
+                'StarkNetDomain': [
+                    { 'name': "name", 'type': "felt" },
+                    { 'name': "chainId", 'type': "felt" },
+                    { 'name': "version", 'type': "felt" },
+                ],
+            }, messageTypes),
+            'message': messageData,
+        };
+        const msgHash = typedData$1.getMessageHash(request, address);
+        return msgHash;
+    }
+    starknetSign(hash, pri) {
+        // TODO: unify to ecdsa
+        const signature = index$1.sign(hash.replace('0x', ''), pri.slice(-64));
+        return this.json([signature.r.toString(), signature.s.toString()]);
+    }
     intToBase16(elem) {
         return elem.toString(16);
     }
@@ -1953,7 +2002,7 @@ class Exchange {
     }
     async watchLiquidations(symbol, since = undefined, limit = undefined, params = {}) {
         if (this.has['watchLiquidationsForSymbols']) {
-            return this.watchLiquidationsForSymbols([symbol], since, limit, params);
+            return await this.watchLiquidationsForSymbols([symbol], since, limit, params);
         }
         throw new errors.NotSupported(this.id + ' watchLiquidations() is not supported yet');
     }
@@ -2938,48 +2987,61 @@ class Exchange {
             }
             cost = Precise["default"].stringMul(multiplyPrice, amount);
         }
-        const parseFee = this.safeValue(trade, 'fee') === undefined;
-        const parseFees = this.safeValue(trade, 'fees') === undefined;
-        const shouldParseFees = parseFee || parseFees;
-        const fees = [];
-        const fee = this.safeValue(trade, 'fee');
-        if (shouldParseFees) {
-            const reducedFees = this.reduceFees ? this.reduceFeesByCurrency(fees) : fees;
-            const reducedLength = reducedFees.length;
-            for (let i = 0; i < reducedLength; i++) {
-                reducedFees[i]['cost'] = this.safeNumber(reducedFees[i], 'cost');
-                if ('rate' in reducedFees[i]) {
-                    reducedFees[i]['rate'] = this.safeNumber(reducedFees[i], 'rate');
-                }
-            }
-            if (!parseFee && (reducedLength === 0)) {
-                // copy fee to avoid modification by reference
-                const feeCopy = this.deepExtend(fee);
-                feeCopy['cost'] = this.safeNumber(feeCopy, 'cost');
-                if ('rate' in feeCopy) {
-                    feeCopy['rate'] = this.safeNumber(feeCopy, 'rate');
-                }
-                reducedFees.push(feeCopy);
-            }
-            if (parseFees) {
-                trade['fees'] = reducedFees;
-            }
-            if (parseFee && (reducedLength === 1)) {
-                trade['fee'] = reducedFees[0];
-            }
-            const tradeFee = this.safeValue(trade, 'fee');
-            if (tradeFee !== undefined) {
-                tradeFee['cost'] = this.safeNumber(tradeFee, 'cost');
-                if ('rate' in tradeFee) {
-                    tradeFee['rate'] = this.safeNumber(tradeFee, 'rate');
-                }
-                trade['fee'] = tradeFee;
-            }
-        }
+        const [resultFee, resultFees] = this.parsedFeeAndFees(trade);
+        trade['fee'] = resultFee;
+        trade['fees'] = resultFees;
         trade['amount'] = this.parseNumber(amount);
         trade['price'] = this.parseNumber(price);
         trade['cost'] = this.parseNumber(cost);
         return trade;
+    }
+    parsedFeeAndFees(container) {
+        let fee = this.safeDict(container, 'fee');
+        let fees = this.safeList(container, 'fees');
+        const feeDefined = fee !== undefined;
+        const feesDefined = fees !== undefined;
+        // parsing only if at least one of them is defined
+        const shouldParseFees = (feeDefined || feesDefined);
+        if (shouldParseFees) {
+            if (feeDefined) {
+                fee = this.parseFeeNumeric(fee);
+            }
+            if (!feesDefined) {
+                // just set it directly, no further processing needed
+                fees = [fee];
+            }
+            // 'fees' were set, so reparse them
+            const reducedFees = this.reduceFees ? this.reduceFeesByCurrency(fees) : fees;
+            const reducedLength = reducedFees.length;
+            for (let i = 0; i < reducedLength; i++) {
+                reducedFees[i] = this.parseFeeNumeric(reducedFees[i]);
+            }
+            fees = reducedFees;
+            if (reducedLength === 1) {
+                fee = reducedFees[0];
+            }
+            else if (reducedLength === 0) {
+                fee = undefined;
+            }
+        }
+        // in case `fee & fees` are undefined, set `fees` as empty array
+        if (fee === undefined) {
+            fee = {
+                'cost': undefined,
+                'currency': undefined,
+            };
+        }
+        if (fees === undefined) {
+            fees = [];
+        }
+        return [fee, fees];
+    }
+    parseFeeNumeric(fee) {
+        fee['cost'] = this.safeNumber(fee, 'cost'); // ensure numeric
+        if ('rate' in fee) {
+            fee['rate'] = this.safeNumber(fee, 'rate');
+        }
+        return fee;
     }
     findNearestCeiling(arr, providedValue) {
         //  i.e. findNearestCeiling ([ 10, 30, 50],  23) returns 30
@@ -3053,12 +3115,13 @@ class Exchange {
         const reduced = {};
         for (let i = 0; i < fees.length; i++) {
             const fee = fees[i];
-            const feeCurrencyCode = this.safeString(fee, 'currency');
+            const code = this.safeString(fee, 'currency');
+            const feeCurrencyCode = code !== undefined ? code : i.toString();
             if (feeCurrencyCode !== undefined) {
                 const rate = this.safeString(fee, 'rate');
-                const cost = this.safeValue(fee, 'cost');
-                if (Precise["default"].stringEq(cost, '0')) {
-                    // omit zero cost fees
+                const cost = this.safeString(fee, 'cost');
+                if (cost === undefined) {
+                    // omit undefined cost, as it does not make sense, however, don't omit '0' costs, as they still make sense
                     continue;
                 }
                 if (!(feeCurrencyCode in reduced)) {
@@ -3070,7 +3133,7 @@ class Exchange {
                 }
                 else {
                     reduced[feeCurrencyCode][rateKey] = {
-                        'currency': feeCurrencyCode,
+                        'currency': code,
                         'cost': cost,
                     };
                     if (rate !== undefined) {
@@ -3111,7 +3174,15 @@ class Exchange {
                 change = Precise["default"].stringSub(last, open);
             }
             if (average === undefined) {
-                average = Precise["default"].stringDiv(Precise["default"].stringAdd(last, open), '2');
+                let precision = 18;
+                if (market !== undefined && this.isTickPrecision()) {
+                    const marketPrecision = this.safeDict(market, 'precision');
+                    const precisionPrice = this.safeString(marketPrecision, 'price');
+                    if (precisionPrice !== undefined) {
+                        precision = this.precisionFromString(precisionPrice);
+                    }
+                }
+                average = Precise["default"].stringDiv(Precise["default"].stringAdd(last, open), '2', precision);
             }
         }
         if ((percentage === undefined) && (change !== undefined) && (open !== undefined) && Precise["default"].stringGt(open, '0')) {

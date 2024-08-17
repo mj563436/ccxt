@@ -3422,7 +3422,14 @@ class binance extends Exchange {
                 $response = Async\await($this->papiGetBalance ($this->extend($request, $query)));
             } elseif ($this->is_linear($type, $subType)) {
                 $type = 'linear';
-                $response = Async\await($this->fapiPrivateV3GetAccount ($this->extend($request, $query)));
+                $useV2 = null;
+                list($useV2, $params) = $this->handle_option_and_params($params, 'fetchBalance', 'useV2', false);
+                $params = $this->extend($request, $query);
+                if (!$useV2) {
+                    $response = Async\await($this->fapiPrivateV3GetAccount ($params));
+                } else {
+                    $response = Async\await($this->fapiPrivateV2GetAccount ($params));
+                }
             } elseif ($this->is_inverse($type, $subType)) {
                 $type = 'inverse';
                 $response = Async\await($this->dapiPrivateGetAccount ($this->extend($request, $query)));
@@ -10137,6 +10144,7 @@ class binance extends Exchange {
              * @param {string[]} [$symbols] list of unified market $symbols
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {string} [method] method name to call, "positionRisk", "account" or "option", default is "positionRisk"
+             * @param {bool} [$params->useV2] set to true if you want to use the obsolete endpoint, where some more additional fields were provided
              * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=position-structure position structure~
              */
             $defaultMethod = null;
@@ -10303,6 +10311,7 @@ class binance extends Exchange {
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {boolean} [$params->portfolioMargin] set to true if you would like to fetch positions for a portfolio margin account
              * @param {string} [$params->subType] "linear" or "inverse"
+             * @param {bool} [$params->useV2] set to true if you want to use the obsolete endpoint, where some more additional fields were provided
              * @return {array} data on the positions risk
              */
             if ($symbols !== null) {
@@ -10326,7 +10335,14 @@ class binance extends Exchange {
                 if ($isPortfolioMargin) {
                     $response = Async\await($this->papiGetUmPositionRisk ($this->extend($request, $params)));
                 } else {
-                    $response = Async\await($this->fapiPrivateV3GetPositionRisk ($this->extend($request, $params)));
+                    $useV2 = null;
+                    list($useV2, $params) = $this->handle_option_and_params($params, 'fetchPositionsRisk', 'useV2', false);
+                    $params = $this->extend($request, $params);
+                    if (!$useV2) {
+                        $response = Async\await($this->fapiPrivateV3GetPositionRisk ($params));
+                    } else {
+                        $response = Async\await($this->fapiPrivateV2GetPositionRisk ($params));
+                    }
                     //
                     // array(
                     //  array(
@@ -10752,7 +10768,7 @@ class binance extends Exchange {
         $longLeverage = null;
         $shortLeverage = null;
         $leverageValue = $this->safe_integer($leverage, 'leverage');
-        if ($side === 'both') {
+        if (($side === null) || ($side === 'both')) {
             $longLeverage = $leverageValue;
             $shortLeverage = $leverageValue;
         } elseif ($side === 'long') {
@@ -11214,7 +11230,7 @@ class binance extends Exchange {
             }
             if (($api === 'sapi') && ($path === 'asset/dust')) {
                 $query = $this->urlencode_with_array_repeat($extendedParams);
-            } elseif (($path === 'batchOrders') || (mb_strpos($path, 'sub-account') !== false) || ($path === 'capital/withdraw/apply') || (mb_strpos($path, 'staking') !== false)) {
+            } elseif (($path === 'batchOrders') || (mb_strpos($path, 'sub-account') !== false) || ($path === 'capital/withdraw/apply') || (mb_strpos($path, 'staking') !== false) || (mb_strpos($path, 'simple-earn') !== false)) {
                 if (($method === 'DELETE') && ($path === 'batchOrders')) {
                     $orderidlist = $this->safe_list($extendedParams, 'orderidlist', array());
                     $origclientorderidlist = $this->safe_list($extendedParams, 'origclientorderidlist', array());
@@ -13134,7 +13150,7 @@ class binance extends Exchange {
             } else {
                 $request['startTime'] = $now - $msInThirtyDays;
             }
-            $endTime = $this->safe_string_2($params, 'endTime', 'until');
+            $endTime = $this->safe_integer_2($params, 'endTime', 'until');
             if ($endTime !== null) {
                 $request['endTime'] = $endTime;
             } else {
@@ -13174,6 +13190,9 @@ class binance extends Exchange {
                 //     }
                 //
             } else {
+                if (($request['endTime'] - $request['startTime']) > $msInThirtyDays) {
+                    throw new BadRequest($this->id . ' fetchConvertTradeHistory () the max interval between startTime and $endTime is 30 days.');
+                }
                 if ($limit !== null) {
                     $request['limit'] = $limit;
                 }
